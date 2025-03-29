@@ -6,24 +6,54 @@ import (
 	"log"
 
 	libp2p "github.com/libp2p/go-libp2p"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/host"
 	peer "github.com/libp2p/go-libp2p/core/peer"
-	autonat "github.com/libp2p/go-libp2p/p2p/host/autonat"
-	discovery "github.com/libp2p/go-libp2p/p2p/discovery/discovery"
 	routing "github.com/libp2p/go-libp2p/p2p/discovery/routing"
+	autonat "github.com/libp2p/go-libp2p/p2p/host/autonat"
 	multiaddr "github.com/multiformats/go-multiaddr"
 )
 
-func StartServer(ctx context.Context, roomName string) {
+func StartServer(ctx context.Context, roomName string, port string) {
+
+	host := networkConfiguration(ctx, roomName, port)
+
+	sub, topic := pubSubConfiguration(ctx, host, roomName)
+
+	// 4. Read messages in a goroutine
+	go func() {
+		for {
+			msg, err := sub.Next(ctx)
+			if err != nil {
+				// subscription closed
+				return
+			}
+			// Avoid printing our own messages
+			if msg.ReceivedFrom == host.ID() {
+				continue
+			}
+			fmt.Printf("Message from %s: %s\n", msg.ReceivedFrom, string(msg.Data))
+		}
+	}()
+
+	// 5. Publish a test message
+	topic.Publish(ctx, []byte("Hello from me!"))
+
+	defer host.Close()
+}
+
+func networkConfiguration(ctx context.Context, roomName string, port string) host.Host {
+	// ---------------------- Network Connection Configuration ----------------------
+
 	// Initialize libp2p host
 	host, err := libp2p.New(
+		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/" + port),
 		libp2p.EnableHolePunching(),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer host.Close()
 	fmt.Printf("Host created. We are %s\n", host.ID())
 
 	// Set up AutoNAT for sensing if host is behind a NAT and helping with Hole Punching
@@ -68,6 +98,32 @@ func StartServer(ctx context.Context, roomName string) {
         }
     }
 
-	disc := routing.RoutingDiscovery(kDht)
-    discovery.Advertise(ctx, disc, roomName)
+	disc := routing.NewRoutingDiscovery(kDht)
+    disc.Advertise(ctx, roomName)
+
+	return host
+}
+
+func pubSubConfiguration(ctx context.Context, host host.Host, roomName string) (*pubsub.Subscription, *pubsub.Topic) {
+	// ---------------------- PubSub Configuration ----------------------
+
+	// 1. Initialize PubSub
+	ps, err := pubsub.NewGossipSub(ctx, host)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// 2. Join a topic (e.g. the same roomName, or "chat-topic")
+	topic, err := ps.Join(roomName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// 3. Subscribe to the topic
+	sub, err := topic.Subscribe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return sub, topic
 }
