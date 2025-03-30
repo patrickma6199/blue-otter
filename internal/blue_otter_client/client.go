@@ -160,13 +160,15 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 			// 1) Advertise so others can discover us
 			_, err := disc.Advertise(ctx, "--blue-otter-namespace--")
 			if err != nil {
-				fmt.Println("[Discovery] Error advertising:", err)
+				if err.Error() != "failed to find any peer in table" {
+					fmt.Println("[Discovery] Error advertising:", err)
+				}
 			}
 
 			// 2) Find all peers in that namespace
 			peerChan, err := disc.FindPeers(ctx, "--blue-otter-namespace--")
 			if err != nil {
-				if len(kDht.RoutingTable().ListPeers()) != 0 {
+				if err.Error() != "failed to find any peer in table" {
 					fmt.Println("[Discovery] Error finding peers:", err)
 				}
 				continue
