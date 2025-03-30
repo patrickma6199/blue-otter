@@ -70,9 +70,12 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 						// If all parsing fails, fallback to raw
 						fmt.Printf("[%s]<%s> (unparsed): %s\n", roomName, msg.ReceivedFrom, string(msg.Data))
 					}
-					// Now we can show: "Message from Alice: Hello"
-					fmt.Printf("[%s]<%s>: %s\n", roomName, chatMsg.Sender, chatMsg.Text)
 					continue
+				}
+
+				// Now we can show: "Message from Alice: Hello"
+				if(chatMsg.Sender != "" && chatMsg.Text != "") {
+					fmt.Printf("[%s]<%s>: %s\n", roomName, chatMsg.Sender, chatMsg.Text)
 				}
 			}
 		}
