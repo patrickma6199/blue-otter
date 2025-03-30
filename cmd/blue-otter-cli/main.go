@@ -129,7 +129,7 @@ CLIENT NODE - v0.1.0
 						case "/list":
 							// List all connected peers
 							peers := host.Peerstore().Peers()
-							fmt.Println("Connected peers:")
+							systemLogView.Write([]byte("Connected peers:\n"))
 							for _, peer := range peers {
 								systemLogView.Write([]byte(fmt.Sprintf("- %s\n", peer.String())))
 							}
