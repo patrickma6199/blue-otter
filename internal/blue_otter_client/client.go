@@ -151,12 +151,42 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 
 	disc := routing.NewRoutingDiscovery(kDht)
 	
-	go func(disc *routing.RoutingDiscovery) {
-		for{
-			disc.Advertise(ctx, "--blue-otter-namespace--")
-			time.Sleep(5 * time.Second) // Wait for a bit before advertising
+	go func() {
+		for {
+			// 1) Advertise so others can discover us
+			_, err := disc.Advertise(ctx, "--blue-otter-namespace--")
+			if err != nil {
+				fmt.Println("Error advertising:", err)
+			}
+
+			// 2) Find all peers in that namespace
+			peerChan, err := disc.FindPeers(ctx, "--blue-otter-namespace--")
+			if err != nil {
+				fmt.Println("Error finding peers:", err)
+				continue
+			}
+
+			// 3) Connect to each newly discovered peer
+			for p := range peerChan {
+				// Skip self or invalid addresses
+				if p.ID == host.ID() || len(p.Addrs) == 0 {
+					continue
+				}
+
+				if host.Network().Connectedness(p.ID) != network.Connected {
+					fmt.Println("[Discovery] Connecting to peer:", p.ID)
+					if err := host.Connect(ctx, p); err != nil {
+						fmt.Println("Failed to connect to peer:", err)
+					} else {
+						fmt.Println("Connected to new peer:", p.ID)
+					}
+				}
+			}
+
+			// Sleep a bit before the next round
+			time.Sleep(30 * time.Second)
 		}
-	}(disc)
+	}()
 
 	return host
 }
