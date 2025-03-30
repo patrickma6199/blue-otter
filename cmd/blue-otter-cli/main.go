@@ -223,7 +223,7 @@ BOOTSTRAP NODE - P2P Network Entry Point - v0.1.0
 
 					// Account for windows paths in powershell
 					var normalizedAddr string
-					if strings.Contains(address, "C:/") {
+					if strings.HasPrefix(address, "C:/") {
 						if idx := strings.Index(address, "/ip4"); idx != -1 {
 							normalizedAddr = address[idx:]
 						}
@@ -233,7 +233,7 @@ BOOTSTRAP NODE - P2P Network Entry Point - v0.1.0
 						return fmt.Errorf("failed to add bootstrap address: %w", err)
 					}
 
-					fmt.Printf("Bootstrap address '%s' added successfully\n", address)
+					fmt.Printf("Bootstrap address '%s' added successfully\n", normalizedAddr)
 					return nil
 				},
 				Flags: []cli.Flag{

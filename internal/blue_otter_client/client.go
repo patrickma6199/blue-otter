@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"time"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -143,7 +142,7 @@ func networkConfiguration(ctx context.Context, roomName string, port string) hos
 			continue
 		}
 		if err := host.Connect(ctx, *info); err == nil {
-			fmt.Println("Connected to bootstrap:", info.String())
+			fmt.Println("[Networking] Connected to bootstrap:", info.String())
 		} else {
 			log.Printf("[Networking] Failed to connect to bootstrap peer %s: %v\n", info.ID, err)
 		}
@@ -151,31 +150,6 @@ func networkConfiguration(ctx context.Context, roomName string, port string) hos
 
 	disc := routing.NewRoutingDiscovery(kDht)
 	disc.Advertise(ctx, roomName)
-
-	go func() {
-		for {
-			// Find peers advertising the same roomName
-			peerCh, err := disc.FindPeers(ctx, roomName)
-			if err != nil {
-				log.Printf("[Networking] Error during peer discovery: %v\n", err)
-				continue
-			}
-			for peerInfo := range peerCh {
-				// Skip self
-				if peerInfo.ID == host.ID() {
-					continue
-				}
-				// Try to connect to the discovered peer
-				if err := host.Connect(ctx, peerInfo); err != nil {
-					log.Printf("[Networking] Error connecting to peer %s: %v\n", peerInfo.ID, err)
-				} else {
-					fmt.Printf("[Networking] Connected to discovered peer: %s\n", peerInfo.ID)
-				}
-			}
-			// Optionally wait before trying again
-			time.Sleep(10 * time.Second)
-		}
-	}()
 
 	return host
 }
