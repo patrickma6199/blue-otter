@@ -9,6 +9,7 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	autonat "github.com/libp2p/go-libp2p/p2p/host/autonat"
 	management "github.com/patrickma6199/blue-otter/internal/blue_otter_management"
 )
@@ -31,11 +32,30 @@ func SetupConnectionNotifications(host host.Host) {
 
 // StartBootstrapNode starts a libp2p node in bootstrap mode
 func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}) (host.Host, error) {
-	// Initialize libp2p host with the specified port
-	host, err := libp2p.New(
+	// First, try to get the saved private key
+	savedPrivKey, err := management.GetBootstrapPrivateKey()
+	if err != nil {
+		log.Printf("[Networking] Warning: Failed to load private key: %v. Will create new identity.", err)
+	}
+
+	var options []libp2p.Option
+
+	// Add basic options
+	options = append(options,
 		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/"+port),
 		libp2p.EnableHolePunching(),
 	)
+
+	// Add identity option if we have a saved key
+	if savedPrivKey != nil {
+		log.Println("[Networking] Using saved identity for bootstrap node")
+		options = append(options, libp2p.Identity(savedPrivKey))
+	} else {
+		log.Println("[Networking] Creating new identity for bootstrap node")
+	}
+
+	// Initialize libp2p host with the specified options
+	host, err := libp2p.New(options...)
 	if err != nil {
 		return nil, fmt.Errorf("[Networking] Failed to create libp2p host: %w", err)
 	}
@@ -67,6 +87,9 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 	if err := kDht.Bootstrap(ctx); err != nil {
 		return nil, fmt.Errorf("[Networking] Failed to bootstrap DHT: %w", err)
 	}
+
+	disc := routing.NewRoutingDiscovery(kDht)
+	disc.Advertise(ctx, "--blue-otter-namespace--")
 
 	// Save bootstrap info to file
 	if err := management.SaveBootstrapInfo(host); err != nil {

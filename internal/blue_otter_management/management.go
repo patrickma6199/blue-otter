@@ -1,12 +1,14 @@
-package management
+package blue_otter_management
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	common "github.com/patrickma6199/blue-otter/internal/blue_otter_common"
 )
@@ -49,10 +51,24 @@ func SaveBootstrapInfo(host host.Host) error {
 		return err
 	}
 
+	oldInfo, err := LoadBootstrapAddresses()
+	if err != nil {
+		return err
+	}
+
 	configDir := filepath.Join(homeDir, ".blue-otter")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return err
 	}
+
+	// Get private key
+	privateKeyData, err := crypto.MarshalPrivateKey(host.Peerstore().PrivKey(host.ID()))
+	if err != nil {
+		return fmt.Errorf("failed to get private key: %w", err)
+	}
+
+	// Encode private key as base64
+	encodedPrivateKey := base64.StdEncoding.EncodeToString(privateKeyData)
 
 	// Create array of full multiaddresses including peer ID
 	var addresses []string
@@ -63,7 +79,10 @@ func SaveBootstrapInfo(host host.Host) error {
 
 	// Create bootstrap info
 	info := common.BootstrapInfo{
-		Addresses: addresses,
+		BootStrapNodeAddresses: addresses,
+		Addresses:  oldInfo.Addresses,
+		PrivateKey: encodedPrivateKey,
+		PeerID:     host.ID().String(),
 	}
 
 	// Marshal to JSON
@@ -81,6 +100,48 @@ func SaveBootstrapInfo(host host.Host) error {
 	fmt.Printf("Bootstrap node info saved to %s\n", filePath)
 	fmt.Println("Share this file with other users to allow them to connect to this bootstrap node")
 	return nil
+}
+
+// GetBootstrapPrivateKey retrieves the private key of the bootstrap node from config
+func GetBootstrapPrivateKey() (crypto.PrivKey, error) {
+	configPath, err := GetBootstrapFilePath()
+	if err != nil {
+		return nil, err
+	}
+
+	// If file doesn't exist, return error
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var info common.BootstrapInfo
+	if err := json.Unmarshal(data, &info); err != nil {
+		return nil, err
+	}
+
+	// If no private key in config, return nil
+	if info.PrivateKey == "" {
+		return nil, nil
+	}
+
+	// Decode private key from base64
+	privateKeyData, err := base64.StdEncoding.DecodeString(info.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode private key: %w", err)
+	}
+
+	// Unmarshal private key
+	privateKey, err := crypto.UnmarshalPrivateKey(privateKeyData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal private key: %w", err)
+	}
+
+	return privateKey, nil
 }
 
 // LoadBootstrapAddressesForConnections loads bootstrap addresses from the config file
@@ -147,7 +208,7 @@ func AddBootstrapAddress(address string) error {
 	}
 
 	// Check if the address already exists
-	for _, addr := range info.Addresses {
+	for _, addr :=range info.Addresses {
 		if addr == address {
 			return errors.New("bootstrap address already exists")
 		}

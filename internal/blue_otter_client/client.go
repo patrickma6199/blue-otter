@@ -36,7 +36,7 @@ func SetupConnectionNotifications(host host.Host) {
 }
 
 func StartServer(ctx context.Context, username string, roomName string, port string, quitCh <-chan struct{}) (host.Host, *pubsub.Subscription, *pubsub.Topic) {
-	host := networkConfiguration(ctx, roomName, port)
+	host := networkConfiguration(ctx, port)
 
 	// Set up connection notifications
 	SetupConnectionNotifications(host)
@@ -81,7 +81,7 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 	return host, sub, topic
 }
 
-func networkConfiguration(ctx context.Context, roomName string, port string) host.Host {
+func networkConfiguration(ctx context.Context, port string) host.Host {
 	// ---------------------- Network Connection Configuration ----------------------
 
 	// Initialize libp2p host
@@ -149,7 +149,7 @@ func networkConfiguration(ctx context.Context, roomName string, port string) hos
 	}
 
 	disc := routing.NewRoutingDiscovery(kDht)
-	disc.Advertise(ctx, roomName)
+	disc.Advertise(ctx, "--blue-otter-namespace--")
 
 	return host
 }
