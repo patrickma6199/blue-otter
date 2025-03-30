@@ -19,12 +19,12 @@ func SetupConnectionNotifications(host host.Host) {
 		ConnectedF: func(n network.Network, conn network.Conn) {
 			remotePeer := conn.RemotePeer()
 			remoteAddr := conn.RemoteMultiaddr()
-			fmt.Printf("📥 New connection from peer: %s via %s\n", remotePeer.String(), remoteAddr)
+			fmt.Printf("[Networking] New connection from peer: %s via %s\n", remotePeer.String(), remoteAddr)
 		},
 		DisconnectedF: func(n network.Network, conn network.Conn) {
 			remotePeer := conn.RemotePeer()
 			remoteAddr := conn.RemoteMultiaddr()
-			fmt.Printf("📤 Disconnected from peer: %s via %s\n", remotePeer.String(), remoteAddr)
+			fmt.Printf("[Networking] Disconnected from peer: %s via %s\n", remotePeer.String(), remoteAddr)
 		},
 	})
 }
@@ -37,7 +37,7 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 		libp2p.EnableHolePunching(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create libp2p host: %w", err)
+		return nil, fmt.Errorf("[Networking] Failed to create libp2p host: %w", err)
 	}
 
 	// Set up connection notifications
@@ -46,12 +46,12 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 	// Set up AutoNAT for sensing if host is behind a NAT and helping with Hole Punching
 	_, err = autonat.New(host)
 	if err != nil {
-		log.Printf("AutoNAT warning: %v\n", err)
+		log.Printf("[Networking] AutoNAT warning: %v\n", err)
 	}
 
 	// Display node information
-	fmt.Println("Bootstrap Node Started")
-	fmt.Println("Peer ID:", host.ID())
+	fmt.Println("[Networking] Bootstrap Node Started")
+	fmt.Println("[Networking] Peer ID:", host.ID())
 	fmt.Println("Listening on:")
 	for _, addr := range host.Addrs() {
 		fmt.Printf(" - %s/p2p/%s\n", addr, host.ID())
@@ -60,17 +60,17 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 	// Set up DHT in server mode for better peer discovery
 	kDht, err := dht.New(ctx, host, dht.Mode(dht.ModeServer))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create DHT: %w", err)
+		return nil, fmt.Errorf("[Networking] Failed to create DHT: %w", err)
 	}
 
 	// Start DHT bootstrap process
 	if err := kDht.Bootstrap(ctx); err != nil {
-		return nil, fmt.Errorf("failed to bootstrap DHT: %w", err)
+		return nil, fmt.Errorf("[Networking] Failed to bootstrap DHT: %w", err)
 	}
 
 	// Save bootstrap info to file
 	if err := management.SaveBootstrapInfo(host); err != nil {
-		log.Printf("Warning: Failed to save bootstrap info: %v", err)
+		log.Printf("[Config] Warning: Failed to save bootstrap info: %v", err)
 	}
 
 	// Wait for quit signal

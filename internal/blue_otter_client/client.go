@@ -25,12 +25,12 @@ func SetupConnectionNotifications(host host.Host) {
 		ConnectedF: func(n network.Network, conn network.Conn) {
 			remotePeer := conn.RemotePeer()
 			remoteAddr := conn.RemoteMultiaddr()
-			fmt.Printf("🔵 Connected to peer: %s via %s\n", remotePeer.String(), remoteAddr)
+			fmt.Printf("[Networking] Connected to peer: %s via %s\n", remotePeer.String(), remoteAddr)
 		},
 		DisconnectedF: func(n network.Network, conn network.Conn) {
 			remotePeer := conn.RemotePeer()
 			remoteAddr := conn.RemoteMultiaddr()
-			fmt.Printf("🔴 Disconnected from peer: %s via %s\n", remotePeer.String(), remoteAddr)
+			fmt.Printf("[Networking] Disconnected from peer: %s via %s\n", remotePeer.String(), remoteAddr)
 		},
 	})
 }
@@ -64,7 +64,7 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 					err = json.Unmarshal(msg.Data, &sysMsg)
 					if err == nil {
 						// Successfully parsed as system notification
-						fmt.Printf("📢 %s\n", sysMsg.Message)
+						fmt.Printf("[%s | notification] %s\n", roomName, sysMsg.Message)
 					} else {
 						// If all parsing fails, fallback to raw
 						fmt.Printf("[%s] Message from %s (unparsed): %s\n", roomName, msg.ReceivedFrom, string(msg.Data))
