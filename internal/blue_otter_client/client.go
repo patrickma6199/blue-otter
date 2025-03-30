@@ -53,13 +53,7 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 			default:
 				msg, err := sub.Next(ctx)
 				if err != nil {
-					// subscription closed
 					return
-				}
-
-				// Skip messages from ourselves
-				if msg.ReceivedFrom == host.ID() {
-					continue
 				}
 
 				// Try to parse as ChatMessage first
