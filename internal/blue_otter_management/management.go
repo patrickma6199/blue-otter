@@ -3,14 +3,13 @@ package management
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-)
 
-// BootstrapInfo represents the bootstrap node information
-type BootstrapInfo struct {
-	Addresses []string `json:"addresses"`
-}
+	"github.com/libp2p/go-libp2p/core/host"
+	common "github.com/patrickma6199/blue-otter/internal/blue_otter_common"
+)
 
 // GetConfigDir returns the path to the Blue Otter configuration directory
 func GetConfigDir() (string, error) {
@@ -43,10 +42,62 @@ func EnsureConfigDir() error {
 	return nil
 }
 
+// SaveBootstrapInfo saves the bootstrap node's information to a file
+func SaveBootstrapInfo(host host.Host) error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	configDir := filepath.Join(homeDir, ".blue-otter")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return err
+	}
+
+	// Create array of full multiaddresses including peer ID
+	var addresses []string
+	for _, addr := range host.Addrs() {
+		fullAddr := fmt.Sprintf("%s/p2p/%s", addr.String(), host.ID())
+		addresses = append(addresses, fullAddr)
+	}
+
+	// Create bootstrap info
+	info := common.BootstrapInfo{
+		Addresses: addresses,
+	}
+
+	// Marshal to JSON
+	data, err := json.MarshalIndent(info, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal bootstrap info: %w", err)
+	}
+
+	// Write to file
+	filePath := filepath.Join(configDir, "bootstrap.json")
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write bootstrap info: %w", err)
+	}
+
+	fmt.Printf("Bootstrap node info saved to %s\n", filePath)
+	fmt.Println("Share this file with other users to allow them to connect to this bootstrap node")
+	return nil
+}
+
+// LoadBootstrapAddressesForConnections loads bootstrap addresses from the config file
+func LoadBootstrapAddressesForConnections() ([]string, error) {
+
+	info, err := LoadBootstrapAddresses()
+	if err != nil {
+		return nil, err
+	}
+
+	return info.Addresses, nil
+}
+
 // LoadBootstrapAddresses loads the bootstrap addresses from the configuration file
-func LoadBootstrapAddresses() (BootstrapInfo, error) {
-	var info BootstrapInfo
-	
+func LoadBootstrapAddresses() (common.BootstrapInfo, error) {
+	var info common.BootstrapInfo
+
 	configPath, err := GetBootstrapFilePath()
 	if err != nil {
 		return info, err
@@ -54,7 +105,7 @@ func LoadBootstrapAddresses() (BootstrapInfo, error) {
 
 	// If file doesn't exist, return empty info
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return BootstrapInfo{Addresses: []string{}}, nil
+		return common.BootstrapInfo{Addresses: []string{}}, nil
 	}
 
 	data, err := os.ReadFile(configPath)
@@ -69,8 +120,8 @@ func LoadBootstrapAddresses() (BootstrapInfo, error) {
 	return info, nil
 }
 
-// SaveBootstrapAddresses saves the bootstrap addresses to the configuration file
-func SaveBootstrapAddresses(info BootstrapInfo) error {
+// SaveBootstrapAddress saves the bootstrap addresses to the configuration file
+func SaveBootstrapAddress(info common.BootstrapInfo) error {
 	if err := EnsureConfigDir(); err != nil {
 		return err
 	}
@@ -104,7 +155,7 @@ func AddBootstrapAddress(address string) error {
 
 	// Add the new address
 	info.Addresses = append(info.Addresses, address)
-	return SaveBootstrapAddresses(info)
+	return SaveBootstrapAddress(info)
 }
 
 // RemoveBootstrapAddress removes a bootstrap address from the configuration
@@ -130,7 +181,7 @@ func RemoveBootstrapAddress(address string) error {
 	}
 
 	info.Addresses = newAddresses
-	return SaveBootstrapAddresses(info)
+	return SaveBootstrapAddress(info)
 }
 
 // CleanupConfig removes the Blue Otter configuration directory

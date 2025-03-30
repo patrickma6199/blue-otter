@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 
 	common "github.com/patrickma6199/blue-otter/internal/blue_otter_common"
+	management "github.com/patrickma6199/blue-otter/internal/blue_otter_management"
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -19,75 +18,7 @@ import (
 	multiaddr "github.com/multiformats/go-multiaddr"
 )
 
-// SaveBootstrapInfo saves the bootstrap node's information to a file
-func SaveBootstrapInfo(host host.Host) error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
-	}
 
-	configDir := filepath.Join(homeDir, ".blue-otter")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	// Create array of full multiaddresses including peer ID
-	var addresses []string
-	for _, addr := range host.Addrs() {
-		fullAddr := fmt.Sprintf("%s/p2p/%s", addr.String(), host.ID())
-		addresses = append(addresses, fullAddr)
-	}
-
-	// Create bootstrap info
-	info := common.BootstrapInfo{
-		Addresses: addresses,
-	}
-
-	// Marshal to JSON
-	data, err := json.MarshalIndent(info, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal bootstrap info: %w", err)
-	}
-
-	// Write to file
-	filePath := filepath.Join(configDir, "bootstrap.json")
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write bootstrap info: %w", err)
-	}
-
-	fmt.Printf("Bootstrap node info saved to %s\n", filePath)
-	fmt.Println("Share this file with other users to allow them to connect to this bootstrap node")
-	return nil
-}
-
-// LoadBootstrapAddresses loads bootstrap addresses from the config file
-func LoadBootstrapAddresses() ([]string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user home directory: %w", err)
-	}
-
-	filePath := filepath.Join(homeDir, ".blue-otter", "bootstrap.json")
-
-	// Check if file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return []string{}, nil // Return empty list if file doesn't exist
-	}
-
-	// Read file
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read bootstrap info: %w", err)
-	}
-
-	// Unmarshal JSON
-	var info common.BootstrapInfo
-	if err := json.Unmarshal(data, &info); err != nil {
-		return nil, fmt.Errorf("failed to parse bootstrap info: %w", err)
-	}
-
-	return info.Addresses, nil
-}
 
 func StartServer(ctx context.Context, username string, roomName string, port string, quitCh <-chan struct{}) (host.Host, *pubsub.Subscription, *pubsub.Topic) {
 	host := networkConfiguration(ctx, roomName, port)
@@ -158,7 +89,7 @@ func networkConfiguration(ctx context.Context, roomName string, port string) hos
 	}
 
 	// Load bootstrap addresses
-	bootstrapAddrs, err := LoadBootstrapAddresses()
+	bootstrapAddrs, err := management.LoadBootstrapAddressesForConnections()
 	if err != nil {
 		log.Printf("Warning: Failed to load bootstrap addresses: %v", err)
 		bootstrapAddrs = []string{} // Use empty list if loading fails
@@ -166,8 +97,8 @@ func networkConfiguration(ctx context.Context, roomName string, port string) hos
 
 	// If no bootstrap addresses found, use default placeholder
 	if len(bootstrapAddrs) == 0 {
-		bootstrapAddrs = []string{"<multiaddr of bootstrap peer>"}
-		log.Println("No bootstrap peers found. Using placeholder.")
+		bootstrapAddrs = []string{}
+		log.Println("No bootstrap peers found. Please add some using the management commands.")
 	} else {
 		log.Printf("Loaded %d bootstrap peers", len(bootstrapAddrs))
 	}

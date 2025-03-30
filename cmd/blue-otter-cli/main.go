@@ -18,8 +18,8 @@ import (
 
 func main() {
 	app := &cli.App{
-		Name: "blue-otter-cli",
-		Usage: "CLI Interface for Blue Otter Mesh Messaging",
+		Name:    "blue-otter-cli",
+		Usage:   "CLI Interface for Blue Otter Mesh Messaging",
 		Version: "0.1.0",
 		Authors: []*cli.Author{
 			{
