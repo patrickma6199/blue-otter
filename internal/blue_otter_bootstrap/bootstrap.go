@@ -8,8 +8,26 @@ import (
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	autonat "github.com/libp2p/go-libp2p/p2p/host/autonat"
+	management "github.com/patrickma6199/blue-otter/internal/blue_otter_management"
 )
+
+// SetupConnectionNotifications configures the host to log connection events
+func SetupConnectionNotifications(host host.Host) {
+	host.Network().Notify(&network.NotifyBundle{
+		ConnectedF: func(n network.Network, conn network.Conn) {
+			remotePeer := conn.RemotePeer()
+			remoteAddr := conn.RemoteMultiaddr()
+			fmt.Printf("📥 New connection from peer: %s via %s\n", remotePeer.String(), remoteAddr)
+		},
+		DisconnectedF: func(n network.Network, conn network.Conn) {
+			remotePeer := conn.RemotePeer()
+			remoteAddr := conn.RemoteMultiaddr()
+			fmt.Printf("📤 Disconnected from peer: %s via %s\n", remotePeer.String(), remoteAddr)
+		},
+	})
+}
 
 // StartBootstrapNode starts a libp2p node in bootstrap mode
 func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}) (host.Host, error) {
@@ -22,6 +40,9 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 		return nil, fmt.Errorf("failed to create libp2p host: %w", err)
 	}
 
+	// Set up connection notifications
+	SetupConnectionNotifications(host)
+
 	// Set up AutoNAT for sensing if host is behind a NAT and helping with Hole Punching
 	_, err = autonat.New(host)
 	if err != nil {
@@ -29,8 +50,9 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 	}
 
 	// Display node information
-	fmt.Println("Bootstrap node started with ID:", host.ID())
-	fmt.Println("This node can be reached at:")
+	fmt.Println("Bootstrap Node Started")
+	fmt.Println("Peer ID:", host.ID())
+	fmt.Println("Listening on:")
 	for _, addr := range host.Addrs() {
 		fmt.Printf(" - %s/p2p/%s\n", addr, host.ID())
 	}
@@ -44,6 +66,11 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 	// Start DHT bootstrap process
 	if err := kDht.Bootstrap(ctx); err != nil {
 		return nil, fmt.Errorf("failed to bootstrap DHT: %w", err)
+	}
+
+	// Save bootstrap info to file
+	if err := management.SaveBootstrapInfo(host); err != nil {
+		log.Printf("Warning: Failed to save bootstrap info: %v", err)
 	}
 
 	// Wait for quit signal

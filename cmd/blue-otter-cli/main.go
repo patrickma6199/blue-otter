@@ -76,6 +76,14 @@ P2P Communication Made Simple - v0.1.0
 					host, _, topic := client.StartServer(ctx, c.String("username"), c.String("room"), c.String("port"), quitCh)
 					defer host.Close()
 
+					// Announce our arrival
+					joinMsg := common.SystemNotification{
+						Type:    "join",
+						Message: fmt.Sprintf("User %s has joined the room", c.String("username")),
+					}
+					joinData, _ := json.Marshal(joinMsg)
+					topic.Publish(ctx, joinData)
+
 					fmt.Println("Blue Otter started! Type /quit to exit.")
 
 					// Start a goroutine to read user input
@@ -84,6 +92,14 @@ P2P Communication Made Simple - v0.1.0
 						for scanner.Scan() {
 							text := scanner.Text()
 							if text == "/quit" {
+								// Send leave message before quitting
+								leaveMsg := common.SystemNotification{
+									Type:    "leave",
+									Message: fmt.Sprintf("User %s has left the room", c.String("username")),
+								}
+								leaveData, _ := json.Marshal(leaveMsg)
+								topic.Publish(ctx, leaveData)
+
 								fmt.Println("Shutting down Blue Otter...")
 								close(quitCh)
 								cancel()
@@ -204,7 +220,16 @@ BOOTSTRAP NODE - P2P Network Entry Point - v0.1.0
 					}
 
 					address := c.String("address")
-					if err := management.AddBootstrapAddress(address); err != nil {
+
+					// Account for windows paths in powershell
+					var normalizedAddr string
+					if strings.Contains(address, "C:/") {
+						if idx := strings.Index(address, "/ip4"); idx != -1 {
+							normalizedAddr = address[idx:]
+						}
+					}
+
+					if err := management.AddBootstrapAddress(normalizedAddr); err != nil {
 						return fmt.Errorf("failed to add bootstrap address: %w", err)
 					}
 

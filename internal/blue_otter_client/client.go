@@ -6,22 +6,40 @@ import (
 	"fmt"
 	"log"
 
-	common "github.com/patrickma6199/blue-otter/internal/blue_otter_common"
-	management "github.com/patrickma6199/blue-otter/internal/blue_otter_management"
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	routing "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	autonat "github.com/libp2p/go-libp2p/p2p/host/autonat"
 	multiaddr "github.com/multiformats/go-multiaddr"
+	common "github.com/patrickma6199/blue-otter/internal/blue_otter_common"
+	management "github.com/patrickma6199/blue-otter/internal/blue_otter_management"
 )
 
-
+// SetupConnectionNotifications configures the host to log connection events
+func SetupConnectionNotifications(host host.Host) {
+	host.Network().Notify(&network.NotifyBundle{
+		ConnectedF: func(n network.Network, conn network.Conn) {
+			remotePeer := conn.RemotePeer()
+			remoteAddr := conn.RemoteMultiaddr()
+			fmt.Printf("🔵 Connected to peer: %s via %s\n", remotePeer.String(), remoteAddr)
+		},
+		DisconnectedF: func(n network.Network, conn network.Conn) {
+			remotePeer := conn.RemotePeer()
+			remoteAddr := conn.RemoteMultiaddr()
+			fmt.Printf("🔴 Disconnected from peer: %s via %s\n", remotePeer.String(), remoteAddr)
+		},
+	})
+}
 
 func StartServer(ctx context.Context, username string, roomName string, port string, quitCh <-chan struct{}) (host.Host, *pubsub.Subscription, *pubsub.Topic) {
 	host := networkConfiguration(ctx, roomName, port)
+
+	// Set up connection notifications
+	SetupConnectionNotifications(host)
 
 	sub, topic := pubSubConfiguration(ctx, host, roomName)
 
@@ -38,11 +56,25 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 					return
 				}
 
+				// Skip messages from ourselves
+				if msg.ReceivedFrom == host.ID() {
+					continue
+				}
+
+				// Try to parse as ChatMessage first
 				var chatMsg common.ChatMessage
 				err = json.Unmarshal(msg.Data, &chatMsg)
 				if err != nil {
-					// If we fail to parse, fallback to raw
-					fmt.Printf("Message from %s (unparsed): %s\n", msg.ReceivedFrom, string(msg.Data))
+					// If we fail to parse as ChatMessage, try SystemNotification
+					var sysMsg common.SystemNotification
+					err = json.Unmarshal(msg.Data, &sysMsg)
+					if err == nil {
+						// Successfully parsed as system notification
+						fmt.Printf("📢 %s\n", sysMsg.Message)
+					} else {
+						// If all parsing fails, fallback to raw
+						fmt.Printf("Message from %s (unparsed): %s\n", msg.ReceivedFrom, string(msg.Data))
+					}
 					continue
 				}
 
