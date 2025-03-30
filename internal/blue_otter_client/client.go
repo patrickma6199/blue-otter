@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -149,7 +150,11 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 	}
 
 	disc := routing.NewRoutingDiscovery(kDht)
-	disc.Advertise(ctx, "--blue-otter-namespace--")
+	
+	go func(disc *routing.RoutingDiscovery) {
+		disc.Advertise(ctx, "--blue-otter-namespace--")
+		time.Sleep(5 * time.Second) // Wait for a bit before advertising
+	}(disc)
 
 	return host
 }
