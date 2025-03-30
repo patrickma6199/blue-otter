@@ -117,8 +117,6 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 					fmt.Println("[Discovery] Connecting to peer:", p.ID)
 					if err := host.Connect(ctx, p); err != nil {
 						fmt.Println("Failed to connect to peer:", err)
-					} else {
-						fmt.Println("Connected to new peer:", p.ID)
 					}
 				}
 			}

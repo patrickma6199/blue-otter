@@ -68,13 +68,12 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 						fmt.Printf("[%s | notification] %s\n", roomName, sysMsg.Message)
 					} else {
 						// If all parsing fails, fallback to raw
-						fmt.Printf("[%s] Message from %s (unparsed): %s\n", roomName, msg.ReceivedFrom, string(msg.Data))
+						fmt.Printf("[%s]<%s> (unparsed): %s\n", roomName, msg.ReceivedFrom, string(msg.Data))
 					}
+					// Now we can show: "Message from Alice: Hello"
+					fmt.Printf("[%s]<%s>: %s\n", roomName, chatMsg.Sender, chatMsg.Text)
 					continue
 				}
-
-				// Now we can show: "Message from Alice: Hello"
-				fmt.Printf("[%s] Message from %s: %s\n", roomName, chatMsg.Sender, chatMsg.Text)
 			}
 		}
 	}()
@@ -152,17 +151,21 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 	disc := routing.NewRoutingDiscovery(kDht)
 	
 	go func() {
+		deadPeers := make(map[peer.ID]time.Time)
+
 		for {
 			// 1) Advertise so others can discover us
 			_, err := disc.Advertise(ctx, "--blue-otter-namespace--")
 			if err != nil {
-				fmt.Println("Error advertising:", err)
+				fmt.Println("[Discovery] Error advertising:", err)
 			}
 
 			// 2) Find all peers in that namespace
 			peerChan, err := disc.FindPeers(ctx, "--blue-otter-namespace--")
 			if err != nil {
-				fmt.Println("Error finding peers:", err)
+				if len(kDht.RoutingTable().ListPeers()) != 0 {
+					fmt.Println("[Discovery] Error finding peers:", err)
+				}
 				continue
 			}
 
@@ -172,19 +175,26 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 				if p.ID == host.ID() || len(p.Addrs) == 0 {
 					continue
 				}
+				
+				// If we have a recorded “dead” status for this peer, skip unless cooldown has passed
+				if nextRetry, found := deadPeers[p.ID]; found && time.Now().Before(nextRetry) {
+					continue
+				}
 
 				if host.Network().Connectedness(p.ID) != network.Connected {
-					fmt.Println("[Discovery] Connecting to peer:", p.ID)
+					fmt.Println("[Discovery] Connecting to peer from peer list:", p.ID)
 					if err := host.Connect(ctx, p); err != nil {
-						fmt.Println("Failed to connect to peer:", err)
+						fmt.Println("[Discovery] Failed to connect to peer from peer list:", err)
+						deadPeers[p.ID] = time.Now().Add(1 * time.Minute)
 					} else {
-						fmt.Println("Connected to new peer:", p.ID)
+						// Network notification system handles notifying user that peer is connected
+						delete(deadPeers, p.ID)
 					}
 				}
 			}
 
 			// Sleep a bit before the next round
-			time.Sleep(30 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 	}()
 
