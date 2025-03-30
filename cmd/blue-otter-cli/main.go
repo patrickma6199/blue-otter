@@ -222,7 +222,7 @@ BOOTSTRAP NODE - P2P Network Entry Point - v0.1.0
 					address := c.String("address")
 
 					// Account for windows paths in powershell
-					var normalizedAddr string
+					normalizedAddr := address
 					if strings.HasPrefix(address, "C:/") {
 						if idx := strings.Index(address, "/ip4"); idx != -1 {
 							normalizedAddr = address[idx:]
