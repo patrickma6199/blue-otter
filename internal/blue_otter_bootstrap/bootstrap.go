@@ -7,6 +7,7 @@ import (
 	"time"
 
 	libp2p "github.com/libp2p/go-libp2p"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -92,17 +93,22 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 	disc := routing.NewRoutingDiscovery(kDht)
 
 	go func() {
+		deadPeers := make(map[peer.ID]time.Time)
 		for {
 			// 1) Advertise so others can discover us
 			_, err := disc.Advertise(ctx, "--blue-otter-namespace--")
 			if err != nil {
-				fmt.Println("Error advertising:", err)
+				if err.Error() != "failed to find any peer in table" {
+					fmt.Println("[Discovery] Error advertising:", err)
+				}
 			}
 
 			// 2) Find all peers in that namespace
 			peerChan, err := disc.FindPeers(ctx, "--blue-otter-namespace--")
 			if err != nil {
-				fmt.Println("Error finding peers:", err)
+				if err.Error() != "failed to find any peer in table" {
+					fmt.Println("[Discovery] Error finding peers:", err)
+				}
 				continue
 			}
 
@@ -113,16 +119,24 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 					continue
 				}
 
+				// If we have a recorded “dead” status for this peer, skip unless cooldown has passed
+				if nextRetry, found := deadPeers[p.ID]; found && time.Now().Before(nextRetry) {
+					continue
+				}
+
 				if host.Network().Connectedness(p.ID) != network.Connected {
 					fmt.Println("[Discovery] Connecting to peer:", p.ID)
 					if err := host.Connect(ctx, p); err != nil {
 						fmt.Println("[Discovery] Failed to connect to peer:", err)
+						deadPeers[p.ID] = time.Now().Add(1 * time.Minute)
+					} else {
+						delete(deadPeers, p.ID)
 					}
 				}
 			}
 
 			// Sleep a bit before the next round
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}()
 

@@ -68,14 +68,13 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 						fmt.Printf("[%s | notification] %s\n", roomName, sysMsg.Message)
 					} else {
 						// If all parsing fails, fallback to raw
-						fmt.Printf("[%s]<%s> (unparsed): %s\n", roomName, msg.ReceivedFrom, string(msg.Data))
+						fmt.Printf("[%s] <%s> (unparsed): %s\n", roomName, msg.ReceivedFrom, string(msg.Data))
 					}
 					continue
 				}
 
-				// Now we can show: "Message from Alice: Hello"
 				if(chatMsg.Sender != "" && chatMsg.Text != "") {
-					fmt.Printf("[%s]<%s>: %s\n", roomName, chatMsg.Sender, chatMsg.Text)
+					fmt.Printf("[%s] <%s>: %s\n", roomName, chatMsg.Sender, chatMsg.Text)
 				}
 			}
 		}
@@ -199,7 +198,7 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 			}
 
 			// Sleep a bit before the next round
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}()
 
