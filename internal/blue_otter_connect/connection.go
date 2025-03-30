@@ -2,6 +2,7 @@ package blue_otter_connect
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -15,8 +16,13 @@ import (
 	multiaddr "github.com/multiformats/go-multiaddr"
 )
 
-func StartServer(ctx context.Context, roomName string, port string) {
+//TODO: move this and messaging logic to its own file
+type ChatMessage struct {
+    Sender string `json:"sender"`
+    Text   string `json:"text"`
+}
 
+func StartServer(ctx context.Context, username string, roomName string, port string, quitCh <-chan struct{}) (host.Host, *pubsub.Subscription, *pubsub.Topic) {
 	host := networkConfiguration(ctx, roomName, port)
 
 	sub, topic := pubSubConfiguration(ctx, host, roomName)
@@ -24,23 +30,31 @@ func StartServer(ctx context.Context, roomName string, port string) {
 	// 4. Read messages in a goroutine
 	go func() {
 		for {
-			msg, err := sub.Next(ctx)
-			if err != nil {
-				// subscription closed
+			select {
+			case <-ctx.Done():
 				return
+			default:
+				msg, err := sub.Next(ctx)
+				if err != nil {
+					// subscription closed
+					return
+				}
+				
+				var chatMsg ChatMessage
+				err = json.Unmarshal(msg.Data, &chatMsg)
+				if err != nil {
+					// If we fail to parse, fallback to raw
+					fmt.Printf("Message from %s (unparsed): %s\n", msg.ReceivedFrom, string(msg.Data))
+					continue
+				}
+
+				// Now we can show: "Message from Alice: Hello"
+				fmt.Printf("Message from %s: %s\n", chatMsg.Sender, chatMsg.Text)
 			}
-			// Avoid printing our own messages
-			if msg.ReceivedFrom == host.ID() {
-				continue
-			}
-			fmt.Printf("Message from %s: %s\n", msg.ReceivedFrom, string(msg.Data))
 		}
 	}()
 
-	// 5. Publish a test message
-	topic.Publish(ctx, []byte("Hello from me!"))
-
-	defer host.Close()
+	return host, sub, topic
 }
 
 func networkConfiguration(ctx context.Context, roomName string, port string) host.Host {
@@ -48,7 +62,7 @@ func networkConfiguration(ctx context.Context, roomName string, port string) hos
 
 	// Initialize libp2p host
 	host, err := libp2p.New(
-		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/" + port),
+		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/"+port),
 		libp2p.EnableHolePunching(),
 	)
 	if err != nil {
@@ -60,46 +74,45 @@ func networkConfiguration(ctx context.Context, roomName string, port string) hos
 	// Hole punching is important here because you want to be able to advertise your address
 	// to other peers in the public network (from what I can understand)
 	_, err = autonat.New(host)
-    if err != nil {
-        log.Printf("AutoNAT warning: %v\n", err)
-    }
+	if err != nil {
+		log.Printf("AutoNAT warning: %v\n", err)
+	}
 
 	fmt.Println("My Peer ID:", host.ID())
-    for _, addr := range host.Addrs() {
-        fmt.Printf(" - %s/p2p/%s\n", addr, host.ID())
-    }
+	for _, addr := range host.Addrs() {
+		fmt.Printf(" - %s/p2p/%s\n", addr, host.ID())
+	}
 
-
-    //Set up the Kademlia DHT for peer discovery
+	//Set up the Kademlia DHT for peer discovery
 	//dht.Mode(dht.ModeAuto) is used to automatically determine the best mod for the DHT:
 	// - ModeServer: the node will act as a DHT server (store more routing data)
 	// - ModeClient: the node will act as a DHT client (store less routing data)
 	// - ModeAuto: the node will act as both a DHT server and client
-    kDht, err := dht.New(ctx, host, dht.Mode(dht.ModeAuto))
-    if err != nil {
-        log.Fatal(err)
-    }
+	kDht, err := dht.New(ctx, host, dht.Mode(dht.ModeAuto))
+	if err != nil {
+		log.Fatal(err)
+	}
 	// Tells your node to start participating in the DHT so it can route queries and respond to lookups.
-    if err := kDht.Bootstrap(ctx); err != nil {
-        log.Fatal(err)
-    }
+	if err := kDht.Bootstrap(ctx); err != nil {
+		log.Fatal(err)
+	}
 
 	// TODO: implement way to persist bootstrap peer addresses
 	// bootstrap peers are known peers that allow you to join the mesh network (decentralized)
 	bootstrapAddrs := []string{"<multiaddr of bootstrap peer>"}
-    for _, ba := range bootstrapAddrs {
-        maddr, err := multiaddr.NewMultiaddr(ba)
-        if err != nil {
-            continue
-        }
-        info, _ := peer.AddrInfoFromP2pAddr(maddr)
-        if err := host.Connect(ctx, *info); err == nil {
-            fmt.Println("Connected to bootstrap:", info.String())
-        }
-    }
+	for _, ba := range bootstrapAddrs {
+		maddr, err := multiaddr.NewMultiaddr(ba)
+		if err != nil {
+			continue
+		}
+		info, _ := peer.AddrInfoFromP2pAddr(maddr)
+		if err := host.Connect(ctx, *info); err == nil {
+			fmt.Println("Connected to bootstrap:", info.String())
+		}
+	}
 
 	disc := routing.NewRoutingDiscovery(kDht)
-    disc.Advertise(ctx, roomName)
+	disc.Advertise(ctx, roomName)
 
 	return host
 }
