@@ -79,7 +79,7 @@ P2P Communication Made Simple - v0.1.0
 					// Announce our arrival
 					joinMsg := common.SystemNotification{
 						Type:    "join",
-						Message: fmt.Sprintf("User %s has joined the room", c.String("username")),
+						Message: fmt.Sprintf("[%s] User %s has joined the room", c.String("room"), c.String("username")),
 					}
 					joinData, _ := json.Marshal(joinMsg)
 					topic.Publish(ctx, joinData)
@@ -95,7 +95,7 @@ P2P Communication Made Simple - v0.1.0
 								// Send leave message before quitting
 								leaveMsg := common.SystemNotification{
 									Type:    "leave",
-									Message: fmt.Sprintf("User %s has left the room", c.String("username")),
+									Message: fmt.Sprintf("[%s] User %s has left the room", c.String("room"), c.String("username")),
 								}
 								leaveData, _ := json.Marshal(leaveMsg)
 								topic.Publish(ctx, leaveData)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -73,13 +74,13 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 						fmt.Printf("📢 %s\n", sysMsg.Message)
 					} else {
 						// If all parsing fails, fallback to raw
-						fmt.Printf("Message from %s (unparsed): %s\n", msg.ReceivedFrom, string(msg.Data))
+						fmt.Printf("[%s] Message from %s (unparsed): %s\n", roomName, msg.ReceivedFrom, string(msg.Data))
 					}
 					continue
 				}
 
 				// Now we can show: "Message from Alice: Hello"
-				fmt.Printf("Message from %s: %s\n", chatMsg.Sender, chatMsg.Text)
+				fmt.Printf("[%s] Message from %s: %s\n", roomName, chatMsg.Sender, chatMsg.Text)
 			}
 		}
 	}()
@@ -98,15 +99,15 @@ func networkConfiguration(ctx context.Context, roomName string, port string) hos
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Host created. We are %s\n", host.ID())
+	fmt.Printf("[Networking] Host created. We are %s\n", host.ID())
 
 	// Set up AutoNAT for sensing if host is behind a NAT and helping with Hole Punching
 	_, err = autonat.New(host)
 	if err != nil {
-		log.Printf("AutoNAT warning: %v\n", err)
+		log.Printf("[Networking] AutoNAT warning: %v\n", err)
 	}
 
-	fmt.Println("My Peer ID:", host.ID())
+	fmt.Println("[Networking] My Peer ID:", host.ID())
 	for _, addr := range host.Addrs() {
 		fmt.Printf(" - %s/p2p/%s\n", addr, host.ID())
 	}
@@ -123,39 +124,64 @@ func networkConfiguration(ctx context.Context, roomName string, port string) hos
 	// Load bootstrap addresses
 	bootstrapAddrs, err := management.LoadBootstrapAddressesForConnections()
 	if err != nil {
-		log.Printf("Warning: Failed to load bootstrap addresses: %v", err)
+		log.Printf("[Networking] Warning: Failed to load bootstrap addresses: %v\n", err)
 		bootstrapAddrs = []string{} // Use empty list if loading fails
 	}
 
 	// If no bootstrap addresses found, use default placeholder
 	if len(bootstrapAddrs) == 0 {
 		bootstrapAddrs = []string{}
-		log.Println("No bootstrap peers found. Please add some using the management commands.")
+		log.Println("[Networking] No bootstrap peers found. Please add some using the management commands.")
 	} else {
-		log.Printf("Loaded %d bootstrap peers", len(bootstrapAddrs))
+		log.Printf("[Networking] Loaded %d bootstrap peers\n", len(bootstrapAddrs))
 	}
 
 	// Connect to bootstrap peers
 	for _, ba := range bootstrapAddrs {
 		maddr, err := multiaddr.NewMultiaddr(ba)
 		if err != nil {
-			log.Printf("Invalid bootstrap address: %s, error: %v", ba, err)
+			log.Printf("[Networking] Invalid bootstrap address: %s, error: %v\n", ba, err)
 			continue
 		}
 		info, err := peer.AddrInfoFromP2pAddr(maddr)
 		if err != nil {
-			log.Printf("Failed to get peer info from address: %s, error: %v", ba, err)
+			log.Printf("[Networking] Failed to get peer info from address: %s, error: %v\n", ba, err)
 			continue
 		}
 		if err := host.Connect(ctx, *info); err == nil {
 			fmt.Println("Connected to bootstrap:", info.String())
 		} else {
-			log.Printf("Failed to connect to bootstrap peer %s: %v", info.ID, err)
+			log.Printf("[Networking] Failed to connect to bootstrap peer %s: %v\n", info.ID, err)
 		}
 	}
 
 	disc := routing.NewRoutingDiscovery(kDht)
 	disc.Advertise(ctx, roomName)
+
+	go func() {
+		for {
+			// Find peers advertising the same roomName
+			peerCh, err := disc.FindPeers(ctx, roomName)
+			if err != nil {
+				log.Printf("[Networking] Error during peer discovery: %v\n", err)
+				continue
+			}
+			for peerInfo := range peerCh {
+				// Skip self
+				if peerInfo.ID == host.ID() {
+					continue
+				}
+				// Try to connect to the discovered peer
+				if err := host.Connect(ctx, peerInfo); err != nil {
+					log.Printf("[Networking] Error connecting to peer %s: %v\n", peerInfo.ID, err)
+				} else {
+					fmt.Printf("[Networking] Connected to discovered peer: %s\n", peerInfo.ID)
+				}
+			}
+			// Optionally wait before trying again
+			time.Sleep(10 * time.Second)
+		}
+	}()
 
 	return host
 }
