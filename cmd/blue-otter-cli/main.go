@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/patrickma6199/blue-otter/internal/blue_otter_connect"
+	bootstrap "github.com/patrickma6199/blue-otter/internal/blue_otter_bootstrap"
+	common "github.com/patrickma6199/blue-otter/internal/blue_otter_common"
+	client "github.com/patrickma6199/blue-otter/internal/blue_otter_client"
 	"github.com/urfave/cli/v2"
 )
 
@@ -26,8 +28,8 @@ func main() {
 		},
 		Commands: []*cli.Command{
 			{
-				Name:    "start",
-				Aliases: []string{"s"},
+				Name:    "client",
+				Aliases: []string{"c"},
 				Usage:   "Start the Blue Otter service",
 				Action: func(c *cli.Context) error {
 
@@ -70,7 +72,7 @@ P2P Communication Made Simple - v0.1.0
 					quitCh := make(chan struct{})
 
 					// Start the server and get the host
-					host, _, topic := blue_otter_connect.StartServer(ctx, c.String("username"), c.String("room"), c.String("port"), quitCh)
+					host, _, topic := client.StartServer(ctx, c.String("username"), c.String("room"), c.String("port"), quitCh)
 					defer host.Close()
 
 					fmt.Println("Blue Otter started! Type /quit to exit.")
@@ -89,7 +91,7 @@ P2P Communication Made Simple - v0.1.0
 								continue
 							}
 
-							msg := blue_otter_connect.ChatMessage{Sender: c.String("username"), Text: text}
+							msg := common.ChatMessage{Sender: c.String("username"), Text: text}
 							data, err := json.Marshal(msg)
 							if err != nil {
 								fmt.Println("Error encoding message:", err)
@@ -120,6 +122,74 @@ P2P Communication Made Simple - v0.1.0
 						Name:    "port",
 						Aliases: []string{"p"},
 						Usage:   "Port to run the Blue Otter service on",
+					},
+				},
+			},
+			{
+				Name:    "bootstrap",
+				Aliases: []string{"b"},
+				Usage:   "Run as a bootstrap node for other Blue Otter instances",
+				Action: func(c *cli.Context) error {
+					fmt.Println(`
+    ____  __    __  ______   ____ _______________  ____     _____ __      ____
+   / __ )/ /   / / / / __/  / __ /_  __/_  __/ __/ / __ \   / ___// /    /  _/
+  / __  / /   / / / / /_   / / / // /   / / / /_  / /_/ /  / /   / /     / /  
+ / /_/ / /___/ /_/ / __/  / /_/ // /   / / / __/ / _, _/  / /_  / /___  / / 
+/_____/_____/\____/___/   \____//_/   /_/ /___/ /_/ |_|  /____//_____//___/  
+                                                                            
+BOOTSTRAP NODE - P2P Network Entry Point - v0.1.0                                                                           
+					`)
+
+					// Get port from command line or use default
+					if c.String("port") == "" {
+						fmt.Println("Port was not provided. Using default: 42069")
+						c.Set("port", "42069")
+					} else if _, err := strconv.Atoi(c.String("port")); err != nil {
+						fmt.Println("Port must be a number. Using default: 42069")
+						c.Set("port", "42069")
+					}
+
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+
+					// Create a quit channel for signaling termination
+					quitCh := make(chan struct{})
+
+					// Start the bootstrap node
+					host, err := bootstrap.StartBootstrapNode(ctx, c.String("port"), quitCh)
+					if err != nil {
+						return fmt.Errorf("failed to start bootstrap node: %w", err)
+					}
+					defer host.Close()
+
+					fmt.Println("\nBootstrap node is running. Type /quit to exit.")
+					fmt.Println("Other Blue Otter instances can now connect to this bootstrap node.")
+					fmt.Println("Bootstrap info saved in ~/.blue-otter/bootstrap.json")
+
+					// Read user input
+					go func() {
+						scanner := bufio.NewScanner(os.Stdin)
+						for scanner.Scan() {
+							text := scanner.Text()
+							if text == "/quit" {
+								fmt.Println("Shutting down bootstrap node...")
+								close(quitCh)
+								cancel()
+								return
+							}
+						}
+					}()
+
+					// Wait for quit signal
+					<-quitCh
+
+					return nil
+				},
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "port",
+						Aliases: []string{"p"},
+						Usage:   "Port to run the bootstrap node on",
 					},
 				},
 			},
