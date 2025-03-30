@@ -1,125 +1,89 @@
-package main
+// package main
 
-func main() {
-    
+// func main() {
+
+// }
+
+package blue_otter_tui
+
+import (
+	"fmt"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+)
+
+// CreateUI builds a layout with:
+//  - A title view at the top (header)
+//  - A chat view on the left
+//  - A system log view on the right
+//  - An input field at the bottom (footer)
+//
+// It returns the root layout plus references to each component so that
+// you can update them (e.g., writing messages to the chat or system log).
+func CreateUI(username string, roomName string) (rootLayout *tview.Flex,
+    titleView *tview.TextView,
+    chatView *tview.TextView,
+    systemLogView *tview.TextView,
+    inputField *tview.InputField) {
+
+	tview.Styles.PrimitiveBackgroundColor = tcell.NewHexColor(0x06385b)
+	tview.Styles.PrimaryTextColor = tcell.NewHexColor(0x60d79d)
+
+
+    // Title at the top (header)
+    titleView = tview.NewTextView()
+		titleView.SetText(`
+    ____  __    __  ______   ____ _______________  ____     _____ __      ____
+   / __ )/ /   / / / / __/  / __ /_  __/_  __/ __/ / __ \   / ___// /    /  _/
+  / __  / /   / / / / /_   / / / // /   / / / /_  / /_/ /  / /   / /     / /  
+/ /_/ / /___/ /_/ / __/  / /_/ // /   / / / __/ / _, _/  / /_  / /___  / / 
+/_____/_____/\____/___/   \____//_/   /_/ /___/ /_/ |_|  /____//_____//___/  
+                                                                            
+																	CLIENT NODE - v0.1.0                                                                           
+					`).
+		SetTextAlign(tview.AlignCenter).
+		SetWrap(true).
+		SetBorder(true)
+
+    // Chat area on the left
+    chatView = tview.NewTextView()
+	chatView.SetTitle(" Chat ").
+		SetBorder(true)
+        
+	chatView.SetTextColor(tcell.ColorWhite)
+
+    // System log area on the right
+    systemLogView = tview.NewTextView()
+	systemLogView.SetTitle(" System Log ").
+        SetBorder(true)
+
+	systemLogView.SetTextColor(tcell.ColorWhite)
+
+    // User input bar at the bottom (footer)
+    inputField = tview.NewInputField().
+        SetLabel(fmt.Sprintf("[%s] <%s>: ", roomName, username)).
+        SetFieldWidth(0). // Allow for full-width text input
+		SetFieldBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetFieldTextColor(tcell.ColorWhite).
+		SetLabelColor(tcell.ColorWhite)
+
+
+    // Main horizontal split: Chat on left, System Log on right
+    mainContent := tview.NewFlex().
+        SetDirection(tview.FlexColumn).
+        AddItem(chatView, 0, 2, false).  // "2" weight for chat
+        AddItem(systemLogView, 0, 1, false) // "1" weight for system log
+
+    // Top-level vertical layout:
+    //  title (header)
+    //  mainContent (chat + system log)
+    //  inputField (footer)
+    rootLayout = tview.NewFlex().
+        SetDirection(tview.FlexRow).
+        AddItem(titleView, 12, 1, false).
+        AddItem(mainContent, 0, 1, false).
+        AddItem(inputField, 1, 1, true)
+
+    return
 }
-
-// package blue_otter_tui
-
-// import (
-//     "context"
-//     "fmt"
-//     "log"
-
-//     "github.com/gdamore/tcell"
-//     "github.com/libp2p/go-libp2p-pubsub"
-//     "github.com/rivo/tview"
-// )
-
-// // ChatMessage is your JSON struct for messages
-// type ChatMessage struct {
-//     Sender string `json:"sender"`
-//     Text   string `json:"text"`
-// }
-
-// func runTUI(
-//     ctx context.Context,
-//     cancel context.CancelFunc,
-//     quitCh chan struct{},
-//     sub *pubsub.Subscription,
-//     topic *pubsub.Topic,
-//     username string,
-// ) error {
-//     // Initialize tview Application
-//     app := tview.NewApplication()
-
-//     // A text view for incoming messages
-//     messagesView := tview.NewTextView().
-//         SetDynamicColors(true).
-//         SetScrollable(true).
-//         SetRegions(true).
-//         SetWrap(true).
-//         SetBorder(true).
-//         SetTitle(" Messages ")
-
-//     // An input field for user typing
-//     inputField := tview.NewInputField().
-//         SetLabel("Type> ").
-//         SetFieldWidth(0). // 0 = no fixed limit
-//         SetDoneFunc(func(key tcell.Key) {
-//             if key == tcell.KeyEnter {
-//                 text := inputField.GetText()
-//                 inputField.SetText("")
-
-//                 if text == "/quit" {
-//                     // signal the main goroutine to shut down
-//                     close(quitCh)
-//                     cancel()
-//                     return
-//                 }
-//                 if text == "" {
-//                     return
-//                 }
-
-//                 // Construct a ChatMessage with username
-//                 msg := ChatMessage{Sender: username, Text: text}
-//                 // Marshal to JSON and publish (example from your existing code)
-//                 data, err := json.Marshal(msg)
-//                 if err != nil {
-//                     addLine(messagesView, "Error encoding message: %v", err)
-//                     return
-//                 }
-//                 topic.Publish(ctx, data)
-//             }
-//         }).
-//         SetBorder(true).
-//         SetTitle(" Input ")
-
-//     // Layout: top half = messages, bottom = input
-//     flex := tview.NewFlex().
-//         SetDirection(tview.FlexRow).
-//         AddItem(messagesView, 0, 1, false). // 0 height => expand
-//         AddItem(inputField, 3, 1, true)     // 3 lines tall
-
-//     app.SetRoot(flex, true)
-
-//     // Start a goroutine to read subscription messages
-//     go func() {
-//         for {
-//             select {
-//             case <-ctx.Done():
-//                 return
-//             default:
-//                 m, err := sub.Next(ctx)
-//                 if err != nil {
-//                     // Subscription closed
-//                     return
-//                 }
-
-//                 // Distinguish self vs others
-//                 if m.ReceivedFrom == topic.(*pubsub.TopicImpl).Router().ID() {
-//                     addLine(messagesView, "[You]: %s", string(m.Data))
-//                 } else {
-//                     // Attempt JSON parse
-//                     var cm ChatMessage
-//                     if err := json.Unmarshal(m.Data, &cm); err != nil {
-//                         addLine(messagesView, "Msg from %s (unparsed): %s", m.ReceivedFrom, string(m.Data))
-//                     } else {
-//                         addLine(messagesView, "[%s]: %s", cm.Sender, cm.Text)
-//                     }
-//                 }
-//             }
-//         }
-//     }()
-
-//     // Run the TUI main loop
-//     if err := app.Run(); err != nil {
-//         log.Printf("tview run error: %v\n", err)
-//     }
-
-//     return nil
-// }
-
-// func addLine(view *tview.TextView, format string, a ...interface{}) {
-//     view.Write([]byte(fmt.Sprintf(format+"\n", a...)))
-// }
