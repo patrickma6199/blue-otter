@@ -92,8 +92,10 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 	disc := routing.NewRoutingDiscovery(kDht)
 
 	go func(disc *routing.RoutingDiscovery) {
-		disc.Advertise(ctx, "--blue-otter-namespace--")
-		time.Sleep(5 * time.Second) // Wait for a bit before advertising
+		for{
+			disc.Advertise(ctx, "--blue-otter-namespace--")
+			time.Sleep(5 * time.Second) // Wait for a bit before advertising
+		}
 	}(disc)
 
 	// Save bootstrap info to file

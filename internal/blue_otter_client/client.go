@@ -152,8 +152,10 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 	disc := routing.NewRoutingDiscovery(kDht)
 	
 	go func(disc *routing.RoutingDiscovery) {
-		disc.Advertise(ctx, "--blue-otter-namespace--")
-		time.Sleep(5 * time.Second) // Wait for a bit before advertising
+		for{
+			disc.Advertise(ctx, "--blue-otter-namespace--")
+			time.Sleep(5 * time.Second) // Wait for a bit before advertising
+		}
 	}(disc)
 
 	return host
