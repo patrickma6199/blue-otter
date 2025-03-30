@@ -44,8 +44,8 @@ func EnsureConfigDir() error {
 	return nil
 }
 
-// SaveBootstrapInfo saves the bootstrap node's information to a file
-func SaveBootstrapInfo(host host.Host) error {
+// SaveAddressInfo saves the bootstrap node's information to a file
+func SaveAddressInfo(host host.Host) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -80,9 +80,9 @@ func SaveBootstrapInfo(host host.Host) error {
 	// Create bootstrap info
 	info := common.BootstrapInfo{
 		BootStrapNodeAddresses: addresses,
-		Addresses:  oldInfo.Addresses,
-		PrivateKey: encodedPrivateKey,
-		PeerID:     host.ID().String(),
+		Addresses:              oldInfo.Addresses,
+		PrivateKey:             encodedPrivateKey,
+		PeerID:                 host.ID().String(),
 	}
 
 	// Marshal to JSON
@@ -102,8 +102,8 @@ func SaveBootstrapInfo(host host.Host) error {
 	return nil
 }
 
-// GetBootstrapPrivateKey retrieves the private key of the bootstrap node from config
-func GetBootstrapPrivateKey() (crypto.PrivKey, error) {
+// GetPrivateKey retrieves the private key of the bootstrap node from config
+func GetPrivateKey() (crypto.PrivKey, error) {
 	configPath, err := GetBootstrapFilePath()
 	if err != nil {
 		return nil, err
@@ -208,7 +208,7 @@ func AddBootstrapAddress(address string) error {
 	}
 
 	// Check if the address already exists
-	for _, addr :=range info.Addresses {
+	for _, addr := range info.Addresses {
 		if addr == address {
 			return errors.New("bootstrap address already exists")
 		}

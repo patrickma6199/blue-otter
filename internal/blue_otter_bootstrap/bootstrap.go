@@ -7,10 +7,10 @@ import (
 	"time"
 
 	libp2p "github.com/libp2p/go-libp2p"
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	autonat "github.com/libp2p/go-libp2p/p2p/host/autonat"
 	management "github.com/patrickma6199/blue-otter/internal/blue_otter_management"
@@ -35,7 +35,7 @@ func SetupConnectionNotifications(host host.Host) {
 // StartBootstrapNode starts a libp2p node in bootstrap mode
 func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}) (host.Host, error) {
 	// First, try to get the saved private key
-	savedPrivKey, err := management.GetBootstrapPrivateKey()
+	savedPrivKey, err := management.GetPrivateKey()
 	if err != nil {
 		log.Printf("[Networking] Warning: Failed to load private key: %v. Will create new identity.", err)
 	}
@@ -141,15 +141,9 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 	}()
 
 	// Save bootstrap info to file
-	if err := management.SaveBootstrapInfo(host); err != nil {
+	if err := management.SaveAddressInfo(host); err != nil {
 		log.Printf("[Config] Warning: Failed to save bootstrap info: %v", err)
 	}
-
-	// Wait for quit signal
-	go func() {
-		<-quitCh
-		fmt.Println("Shutting down bootstrap node...")
-	}()
 
 	return host, nil
 }

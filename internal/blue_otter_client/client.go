@@ -86,11 +86,29 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 func networkConfiguration(ctx context.Context, port string) host.Host {
 	// ---------------------- Network Connection Configuration ----------------------
 
-	// Initialize libp2p host
-	host, err := libp2p.New(
+	savedPrivKey, err := management.GetPrivateKey()
+	if err != nil {
+		log.Printf("[Networking] Warning: Failed to load private key: %v. Will create new identity.", err)
+	}
+
+	var options []libp2p.Option
+
+	// Add basic options
+	options = append(options,
 		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/"+port),
 		libp2p.EnableHolePunching(),
 	)
+
+	// Add identity option if we have a saved key
+	if savedPrivKey != nil {
+		log.Println("[Networking] Using saved identity for bootstrap node")
+		options = append(options, libp2p.Identity(savedPrivKey))
+	} else {
+		log.Println("[Networking] Creating new identity for bootstrap node")
+	}
+
+	// Initialize libp2p host with the specified options
+	host, err := libp2p.New(options...)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -201,6 +219,11 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 			time.Sleep(5 * time.Second)
 		}
 	}()
+
+		// Save bootstrap info to file
+	if err := management.SaveAddressInfo(host); err != nil {
+		log.Printf("[Config] Warning: Failed to save bootstrap info: %v", err)
+	}
 
 	return host
 }

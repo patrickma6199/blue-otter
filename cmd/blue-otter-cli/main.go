@@ -91,7 +91,9 @@ P2P Communication Made Simple - v0.1.0
 						scanner := bufio.NewScanner(os.Stdin)
 						for scanner.Scan() {
 							text := scanner.Text()
-							if text == "/quit" {
+
+							switch text {
+							case "/quit":
 								// Send leave message before quitting
 								leaveMsg := common.SystemNotification{
 									Type:    "leave",
@@ -104,18 +106,42 @@ P2P Communication Made Simple - v0.1.0
 								close(quitCh)
 								cancel()
 								return
-							} else if text == "" {
-								continue
-							}
+							case "/help":
+								fmt.Println("Available commands:")
+								fmt.Println("/quit - Exit the chat")
+								fmt.Println("/help - Show this help message")
+								fmt.Println("/list - List all connected peers")
+								fmt.Println("/clear - Clear the chat window")
+							case "/list":
+								// List all connected peers
+								peers := host.Peerstore().Peers()
+								fmt.Println("Connected peers:")
+								for _, peer := range peers {
+									fmt.Printf("- %s\n", peer.String())
+								}
+							case "/clear":
+								// Clear the chat window
+								fmt.Print("\033[H\033[2J")
+								fmt.Println("Chat window cleared.")
+							default:
+								// Handle other commands or messages
+								if strings.HasPrefix(text, "/") {
+									fmt.Println("Unknown command:", text)
+									continue
+								}
+								if strings.TrimSpace(text) == "" {
+									continue
+								}
 
-							msg := common.ChatMessage{Sender: c.String("username"), Text: text}
-							data, err := json.Marshal(msg)
-							if err != nil {
-								fmt.Println("Error encoding message:", err)
-								continue
-							}
+								msg := common.ChatMessage{Sender: c.String("username"), Text: text}
+								data, err := json.Marshal(msg)
+								if err != nil {
+									fmt.Println("Error encoding message:", err)
+									continue
+								}
 
-							topic.Publish(ctx, data)
+								topic.Publish(ctx, data)
+							}
 						}
 					}()
 
@@ -188,11 +214,36 @@ BOOTSTRAP NODE - P2P Network Entry Point - v0.1.0
 						scanner := bufio.NewScanner(os.Stdin)
 						for scanner.Scan() {
 							text := scanner.Text()
-							if text == "/quit" {
+
+							switch text {
+							case "/quit":
 								fmt.Println("Shutting down bootstrap node...")
 								close(quitCh)
 								cancel()
 								return
+							case "/help":
+								fmt.Println("Available commands:")
+								fmt.Println("/quit - Exit the bootstrap node")
+								fmt.Println("/help - Show this help message")
+								fmt.Println("/list - List all connected peers")
+								fmt.Println("/clear - Clear the console")
+							case "/list":
+								// List all connected peers
+								peers := host.Peerstore().Peers()
+								fmt.Println("Connected peers:")
+								for _, peer := range peers {
+									fmt.Printf("- %s\n", peer.String())
+								}
+							case "/clear":
+								// Clear the console
+								fmt.Print("\033[H\033[2J")
+								fmt.Println("Console cleared.")
+							default:
+								if strings.HasPrefix(text, "/") {
+									fmt.Println("Unknown command:", text)
+								} else {
+									fmt.Println("This is a bootstrap node. No messages can be sent.")
+								}
 							}
 						}
 					}()
