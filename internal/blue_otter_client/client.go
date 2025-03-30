@@ -18,29 +18,30 @@ import (
 	multiaddr "github.com/multiformats/go-multiaddr"
 	common "github.com/patrickma6199/blue-otter/internal/blue_otter_common"
 	management "github.com/patrickma6199/blue-otter/internal/blue_otter_management"
+	"github.com/rivo/tview"
 )
 
 // SetupConnectionNotifications configures the host to log connection events
-func SetupConnectionNotifications(host host.Host) {
+func SetupConnectionNotifications(host host.Host, systemLogView *tview.TextView) {
 	host.Network().Notify(&network.NotifyBundle{
 		ConnectedF: func(n network.Network, conn network.Conn) {
 			remotePeer := conn.RemotePeer()
 			remoteAddr := conn.RemoteMultiaddr()
-			fmt.Printf("[Networking] Connected to peer: %s via %s\n", remotePeer.String(), remoteAddr)
+			systemLogView.Write([]byte(fmt.Sprintf("[Networking] Connected to peer: %s via %s\n", remotePeer.String(), remoteAddr)))
 		},
 		DisconnectedF: func(n network.Network, conn network.Conn) {
 			remotePeer := conn.RemotePeer()
 			remoteAddr := conn.RemoteMultiaddr()
-			fmt.Printf("[Networking] Disconnected from peer: %s via %s\n", remotePeer.String(), remoteAddr)
+			systemLogView.Write([]byte(fmt.Sprintf("[Networking] Disconnected from peer: %s via %s\n", remotePeer.String(), remoteAddr)))
 		},
 	})
 }
 
-func StartServer(ctx context.Context, username string, roomName string, port string, quitCh <-chan struct{}) (host.Host, *pubsub.Subscription, *pubsub.Topic) {
-	host := networkConfiguration(ctx, port)
+func StartServer(ctx context.Context, username string, roomName string, port string, quitCh <-chan struct{}, chatView *tview.TextView, systemLogView *tview.TextView) (host.Host, *pubsub.Subscription, *pubsub.Topic) {
+	host := networkConfiguration(ctx, port, systemLogView)
 
 	// Set up connection notifications
-	SetupConnectionNotifications(host)
+	SetupConnectionNotifications(host, systemLogView)
 
 	sub, topic := pubSubConfiguration(ctx, host, roomName)
 
@@ -65,16 +66,16 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 					err = json.Unmarshal(msg.Data, &sysMsg)
 					if err == nil {
 						// Successfully parsed as system notification
-						fmt.Printf("[%s | notification] %s\n", roomName, sysMsg.Message)
+						systemLogView.Write([]byte(fmt.Sprintf("[%s | notification] %s\n", roomName, sysMsg.Message)))
 					} else {
 						// If all parsing fails, fallback to raw
-						fmt.Printf("[%s] <%s> (unparsed): %s\n", roomName, msg.ReceivedFrom, string(msg.Data))
+						chatView.Write([]byte(fmt.Sprintf("[%s] <%s> (unparsed): %s\n", roomName, msg.ReceivedFrom, string(msg.Data))))
 					}
 					continue
 				}
 
 				if(chatMsg.Sender != "" && chatMsg.Text != "") {
-					fmt.Printf("[%s] <%s>: %s\n", roomName, chatMsg.Sender, chatMsg.Text)
+					chatView.Write([]byte(fmt.Sprintf("[%s] <%s>: %s\n", roomName, chatMsg.Sender, chatMsg.Text)))
 				}
 			}
 		}
@@ -83,12 +84,12 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 	return host, sub, topic
 }
 
-func networkConfiguration(ctx context.Context, port string) host.Host {
+func networkConfiguration(ctx context.Context, port string, systemLogView *tview.TextView) host.Host {
 	// ---------------------- Network Connection Configuration ----------------------
 
 	savedPrivKey, err := management.GetPrivateKey()
 	if err != nil {
-		log.Printf("[Networking] Warning: Failed to load private key: %v. Will create new identity.", err)
+		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Warning: Failed to load private key: %v. Will create new identity.\n", err)))
 	}
 
 	var options []libp2p.Option
@@ -101,10 +102,10 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 
 	// Add identity option if we have a saved key
 	if savedPrivKey != nil {
-		log.Println("[Networking] Using saved identity for bootstrap node")
+		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Using saved identity for bootstrap node\n")))
 		options = append(options, libp2p.Identity(savedPrivKey))
 	} else {
-		log.Println("[Networking] Creating new identity for bootstrap node")
+		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Creating new identity for bootstrap node\n")))
 	}
 
 	// Initialize libp2p host with the specified options
@@ -112,17 +113,17 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("[Networking] Host created. We are %s\n", host.ID())
+	systemLogView.Write([]byte(fmt.Sprintf("[Networking] Host created. We are %s\n", host.ID())))
 
 	// Set up AutoNAT for sensing if host is behind a NAT and helping with Hole Punching
 	_, err = autonat.New(host)
 	if err != nil {
-		log.Printf("[Networking] AutoNAT warning: %v\n", err)
+		systemLogView.Write([]byte(fmt.Sprintf("[Networking] AutoNAT warning: %v\n", err)))
 	}
 
-	fmt.Println("[Networking] My Peer ID:", host.ID())
+	systemLogView.Write([]byte(fmt.Sprintf("[Networking] My Peer ID: %s\n", host.ID())))
 	for _, addr := range host.Addrs() {
-		fmt.Printf(" - %s/p2p/%s\n", addr, host.ID())
+		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Listening on: %s/p2p/%s\n", addr, host.ID())))
 	}
 
 	// Set up the Kademlia DHT for peer discovery
@@ -137,34 +138,34 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 	// Load bootstrap addresses
 	bootstrapAddrs, err := management.LoadBootstrapAddressesForConnections()
 	if err != nil {
-		log.Printf("[Networking] Warning: Failed to load bootstrap addresses: %v\n", err)
+		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Warning: Failed to load bootstrap addresses: %v\n", err)))
 		bootstrapAddrs = []string{} // Use empty list if loading fails
 	}
 
 	// If no bootstrap addresses found, use default placeholder
 	if len(bootstrapAddrs) == 0 {
 		bootstrapAddrs = []string{}
-		log.Println("[Networking] No bootstrap peers found. Please add some using the management commands.")
+		systemLogView.Write([]byte(fmt.Sprintf("[Networking] No bootstrap peers found. Please add some using the management commands.\n")))
 	} else {
-		log.Printf("[Networking] Loaded %d bootstrap peers\n", len(bootstrapAddrs))
+		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Loaded %d bootstrap peers\n", len(bootstrapAddrs))))
 	}
 
 	// Connect to bootstrap peers
 	for _, ba := range bootstrapAddrs {
 		maddr, err := multiaddr.NewMultiaddr(ba)
 		if err != nil {
-			log.Printf("[Networking] Invalid bootstrap address: %s, error: %v\n", ba, err)
+			systemLogView.Write([]byte(fmt.Sprintf("[Networking] Invalid bootstrap address: %s, error: %v\n", ba, err)))
 			continue
 		}
 		info, err := peer.AddrInfoFromP2pAddr(maddr)
 		if err != nil {
-			log.Printf("[Networking] Failed to get peer info from address: %s, error: %v\n", ba, err)
+			systemLogView.Write([]byte(fmt.Sprintf("[Networking] Failed to get peer info from address: %s, error: %v\n", ba, err)))
 			continue
 		}
 		if err := host.Connect(ctx, *info); err == nil {
-			fmt.Println("[Networking] Connected to bootstrap:", info.String())
+			systemLogView.Write([]byte(fmt.Sprintf("[Networking] Connected to bootstrap: %s\n", info.String())))
 		} else {
-			log.Printf("[Networking] Failed to connect to bootstrap peer %s: %v\n", info.ID, err)
+			systemLogView.Write([]byte(fmt.Sprintf("[Networking] Failed to connect to bootstrap peer %s: %v\n", info.ID, err)))
 		}
 	}
 
@@ -178,7 +179,7 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 			_, err := disc.Advertise(ctx, "--blue-otter-namespace--")
 			if err != nil {
 				if err.Error() != "failed to find any peer in table" {
-					fmt.Println("[Discovery] Error advertising:", err)
+					systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Error advertising: %v\n", err)))
 				}
 			}
 
@@ -186,7 +187,7 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 			peerChan, err := disc.FindPeers(ctx, "--blue-otter-namespace--")
 			if err != nil {
 				if err.Error() != "failed to find any peer in table" {
-					fmt.Println("[Discovery] Error finding peers:", err)
+					systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Error finding peers: %v\n", err)))
 				}
 				continue
 			}
@@ -204,10 +205,10 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 				}
 
 				if host.Network().Connectedness(p.ID) != network.Connected {
-					fmt.Println("[Discovery] Connecting to peer from peer list:", p.ID)
+					systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Connecting to peer from peer list: %s\n", p.ID)))
 					if err := host.Connect(ctx, p); err != nil {
-						fmt.Println("[Discovery] Failed to connect to peer from peer list:", err)
-						deadPeers[p.ID] = time.Now().Add(1 * time.Minute)
+						systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Failed to connect to peer from peer list: %v\nRetrying in 20 minutes...\n", err)))
+						deadPeers[p.ID] = time.Now().Add(20 * time.Minute)
 					} else {
 						// Network notification system handles notifying user that peer is connected
 						delete(deadPeers, p.ID)
@@ -222,7 +223,7 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 
 		// Save bootstrap info to file
 	if err := management.SaveAddressInfo(host); err != nil {
-		log.Printf("[Config] Warning: Failed to save bootstrap info: %v", err)
+		systemLogView.Write([]byte(fmt.Sprintf("[Config] Warning: Failed to save bootstrap info: %v\n", err)))
 	}
 
 	return host

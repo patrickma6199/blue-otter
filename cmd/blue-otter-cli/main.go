@@ -9,10 +9,13 @@ import (
 	"strconv"
 	"strings"
 
+	tcell "github.com/gdamore/tcell/v2"
 	bootstrap "github.com/patrickma6199/blue-otter/internal/blue_otter_bootstrap"
 	client "github.com/patrickma6199/blue-otter/internal/blue_otter_client"
 	common "github.com/patrickma6199/blue-otter/internal/blue_otter_common"
 	management "github.com/patrickma6199/blue-otter/internal/blue_otter_management"
+	tui "github.com/patrickma6199/blue-otter/internal/blue_otter_tui"
+	"github.com/rivo/tview"
 	"github.com/urfave/cli/v2"
 )
 
@@ -41,7 +44,7 @@ func main() {
  / /_/ / /___/ /_/ / __/  / /_/ // /   / / / __/ / _, _/  / /_  / /___  / / 
 /_____/_____/\____/___/   \____//_/   /_/ /___/ /_/ |_|  /____//_____//___/  
                                                                             
-P2P Communication Made Simple - v0.1.0                                                                           
+CLIENT NODE - v0.1.0                                                                           
 					`)
 
 					if c.String("room") == "" {
@@ -72,8 +75,12 @@ P2P Communication Made Simple - v0.1.0
 					// Create a quit channel for signaling termination
 					quitCh := make(chan struct{})
 
+					app := tview.NewApplication()
+
+					layout, _, chatView, systemLogView, inputField := tui.CreateUI(c.String("username"), c.String("room"))
+
 					// Start the server and get the host
-					host, _, topic := client.StartServer(ctx, c.String("username"), c.String("room"), c.String("port"), quitCh)
+					host, _, topic := client.StartServer(ctx, c.String("username"), c.String("room"), c.String("port"), quitCh, chatView, systemLogView)
 					defer host.Close()
 
 					// Announce our arrival
@@ -84,66 +91,95 @@ P2P Communication Made Simple - v0.1.0
 					joinData, _ := json.Marshal(joinMsg)
 					topic.Publish(ctx, joinData)
 
-					fmt.Println("Blue Otter started! Type /quit to exit.")
+					chatView.Write([]byte(fmt.Sprintf("[%s] Blue Otter started! Type /quit to exit.\n", c.String("room"))))
 
-					// Start a goroutine to read user input
-					go func() {
-						scanner := bufio.NewScanner(os.Stdin)
-						for scanner.Scan() {
-							text := scanner.Text()
-
-							switch text {
-							case "/quit":
-								// Send leave message before quitting
-								leaveMsg := common.SystemNotification{
-									Type:    "leave",
-									Message: fmt.Sprintf("[%s] User %s has left the room", c.String("room"), c.String("username")),
-								}
-								leaveData, _ := json.Marshal(leaveMsg)
-								topic.Publish(ctx, leaveData)
-
-								fmt.Println("Shutting down Blue Otter...")
-								close(quitCh)
-								cancel()
-								return
-							case "/help":
-								fmt.Println("Available commands:")
-								fmt.Println("/quit - Exit the chat")
-								fmt.Println("/help - Show this help message")
-								fmt.Println("/list - List all connected peers")
-								fmt.Println("/clear - Clear the chat window")
-							case "/list":
-								// List all connected peers
-								peers := host.Peerstore().Peers()
-								fmt.Println("Connected peers:")
-								for _, peer := range peers {
-									fmt.Printf("- %s\n", peer.String())
-								}
-							case "/clear":
-								// Clear the chat window
-								fmt.Print("\033[H\033[2J")
-								fmt.Println("Chat window cleared.")
-							default:
-								// Handle other commands or messages
-								if strings.HasPrefix(text, "/") {
-									fmt.Println("Unknown command:", text)
-									continue
-								}
-								if strings.TrimSpace(text) == "" {
-									continue
-								}
-
-								msg := common.ChatMessage{Sender: c.String("username"), Text: text}
-								data, err := json.Marshal(msg)
-								if err != nil {
-									fmt.Println("Error encoding message:", err)
-									continue
-								}
-
-								topic.Publish(ctx, data)
-							}
+					// Set up the input field to send messages
+					inputField.SetDoneFunc(func(key tcell.Key) {
+						text := inputField.GetText()
+						defer inputField.SetText("")
+						if strings.TrimSpace(text) == "" {
+							return
 						}
-					}()
+						
+						switch text {
+						case "/quit":
+							// Send leave message before quitting
+							leaveMsg := common.SystemNotification{
+								Type:    "leave",
+								Message: fmt.Sprintf("[%s] User %s has left the room", c.String("room"), c.String("username")),
+							}
+							leaveData, _ := json.Marshal(leaveMsg)
+							topic.Publish(ctx, leaveData)
+
+							systemLogView.Write([]byte("Shutting down Blue Otter...\n"))
+
+							app.Stop()
+							close(quitCh)
+							cancel()
+							return
+						case "/help":
+							systemLogView.Write([]byte("Available commands:\n"))
+							systemLogView.Write([]byte("/quit - Exit the chat\n"))
+							systemLogView.Write([]byte("/help - Show this help message\n"))
+							systemLogView.Write([]byte("/list - List all connected peers\n"))
+							systemLogView.Write([]byte("/clear - Clear the chat window\n"))
+							systemLogView.Write([]byte("/clear-log - Clear the system log window\n"))
+							systemLogView.Write([]byte("/clear-all - Clear both chat and system log windows\n"))
+							return
+						case "/list":
+							// List all connected peers
+							peers := host.Peerstore().Peers()
+							fmt.Println("Connected peers:")
+							for _, peer := range peers {
+								systemLogView.Write([]byte(fmt.Sprintf("- %s\n", peer.String())))
+							}
+						case "/clear":
+							// Clear the chat window
+							chatView.SetText("")
+							systemLogView.Write([]byte("Chat window cleared.\n"))
+						case "/clear-log":
+							// Clear the system log window
+							systemLogView.SetText("")
+							chatView.Write([]byte("System log window cleared.\n"))
+						case "/clear-all":
+							// Clear both chat and system log windows
+							chatView.SetText("")
+							systemLogView.SetText("")
+							systemLogView.Write([]byte("Both chat and system log windows cleared.\n"))
+						default:
+							// Handle other commands or messages
+							if strings.HasPrefix(text, "/") {
+								systemLogView.Write([]byte(fmt.Sprintf("Unknown command: %s\n", text)))
+								return
+							}
+
+							msg := common.ChatMessage{Sender: c.String("username"), Text: text}
+							data, err := json.Marshal(msg)
+							if err != nil {
+								systemLogView.Write([]byte(fmt.Sprintf("Error encoding message: %s\n", err)))
+								return
+							}
+
+							topic.Publish(ctx, data)
+						}
+					})
+
+					app.SetFocus(inputField)
+					chatView.SetChangedFunc(func() {
+						app.QueueUpdateDraw(func() {
+							chatView.ScrollToEnd()
+						})
+					})
+					systemLogView.SetChangedFunc(func() {
+						app.QueueUpdateDraw(func() {
+							systemLogView.ScrollToEnd()
+						})
+					})
+
+					// Start the TUI application
+					if err := app.SetRoot(layout, true).Run(); err != nil {
+						panic(err)
+					}
 
 					// Wait for quit signal
 					<-quitCh
