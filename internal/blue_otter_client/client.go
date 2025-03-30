@@ -107,7 +107,7 @@ func networkConfiguration(ctx context.Context, port string) host.Host {
 	}
 
 	// Set up the Kademlia DHT for peer discovery
-	kDht, err := dht.New(ctx, host, dht.Mode(dht.ModeAuto))
+	kDht, err := dht.New(ctx, host, dht.Mode(dht.ModeClient), dht.ProtocolPrefix("/blue-otter"))
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -79,7 +79,7 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 	}
 
 	// Set up DHT in server mode for better peer discovery
-	kDht, err := dht.New(ctx, host, dht.Mode(dht.ModeServer))
+	kDht, err := dht.New(ctx, host, dht.Mode(dht.ModeServer), dht.ProtocolPrefix("/blue-otter"))
 	if err != nil {
 		return nil, fmt.Errorf("[Networking] Failed to create DHT: %w", err)
 	}
@@ -124,7 +124,7 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 			}
 
 			// Sleep a bit before the next round
-			time.Sleep(30 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 	}()
 
