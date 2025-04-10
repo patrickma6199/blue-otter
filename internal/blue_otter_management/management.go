@@ -61,23 +61,19 @@ func SaveAddressInfo(host host.Host) error {
 		return err
 	}
 
-	// Get private key
 	privateKeyData, err := crypto.MarshalPrivateKey(host.Peerstore().PrivKey(host.ID()))
 	if err != nil {
 		return fmt.Errorf("failed to get private key: %w", err)
 	}
 
-	// Encode private key as base64
 	encodedPrivateKey := base64.StdEncoding.EncodeToString(privateKeyData)
 
-	// Create array of full multiaddresses including peer ID
 	var addresses []string
 	for _, addr := range host.Addrs() {
 		fullAddr := fmt.Sprintf("%s/p2p/%s", addr.String(), host.ID())
 		addresses = append(addresses, fullAddr)
 	}
 
-	// Create bootstrap info
 	info := common.BootstrapInfo{
 		BootStrapNodeAddresses: addresses,
 		Addresses:              oldInfo.Addresses,
@@ -85,13 +81,11 @@ func SaveAddressInfo(host host.Host) error {
 		PeerID:                 host.ID().String(),
 	}
 
-	// Marshal to JSON
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal bootstrap info: %w", err)
 	}
 
-	// Write to file
 	filePath := filepath.Join(configDir, "bootstrap.json")
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write bootstrap info: %w", err)
@@ -109,7 +103,6 @@ func GetPrivateKey() (crypto.PrivKey, error) {
 		return nil, err
 	}
 
-	// If file doesn't exist, return error
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -124,18 +117,15 @@ func GetPrivateKey() (crypto.PrivKey, error) {
 		return nil, err
 	}
 
-	// If no private key in config, return nil
 	if info.PrivateKey == "" {
 		return nil, nil
 	}
 
-	// Decode private key from base64
 	privateKeyData, err := base64.StdEncoding.DecodeString(info.PrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode private key: %w", err)
 	}
 
-	// Unmarshal private key
 	privateKey, err := crypto.UnmarshalPrivateKey(privateKeyData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal private key: %w", err)
@@ -164,7 +154,6 @@ func LoadBootstrapAddresses() (common.BootstrapInfo, error) {
 		return info, err
 	}
 
-	// If file doesn't exist, return empty info
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return common.BootstrapInfo{Addresses: []string{}}, nil
 	}
@@ -181,7 +170,7 @@ func LoadBootstrapAddresses() (common.BootstrapInfo, error) {
 	return info, nil
 }
 
-// SaveBootstrapAddress saves the bootstrap addresses to the configuration file
+// SaveBootstrapAddress writes a bootstrap address to the configuration file
 func SaveBootstrapAddress(info common.BootstrapInfo) error {
 	if err := EnsureConfigDir(); err != nil {
 		return err
@@ -207,14 +196,12 @@ func AddBootstrapAddress(address string) error {
 		return err
 	}
 
-	// Check if the address already exists
 	for _, addr := range info.Addresses {
 		if addr == address {
 			return errors.New("bootstrap address already exists")
 		}
 	}
 
-	// Add the new address
 	info.Addresses = append(info.Addresses, address)
 	return SaveBootstrapAddress(info)
 }
@@ -226,7 +213,6 @@ func RemoveBootstrapAddress(address string) error {
 		return err
 	}
 
-	// Find and remove the address
 	found := false
 	var newAddresses []string
 	for _, addr := range info.Addresses {
@@ -252,7 +238,6 @@ func CleanupConfig() error {
 		return err
 	}
 
-	// Check if directory exists before attempting to remove
 	if _, err := os.Stat(configDir); os.IsNotExist(err) {
 		return nil
 	}

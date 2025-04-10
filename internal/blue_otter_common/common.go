@@ -10,8 +10,8 @@ type ChatMessage struct {
 type BootstrapInfo struct {
 	BootStrapNodeAddresses []string `json:"bootstrap_node_addresses"`
 	Addresses  []string `json:"addresses"`
-	PrivateKey string   `json:"private_key,omitempty"` // Base64 encoded private key
-	PeerID     string   `json:"peer_id,omitempty"`     // Peer ID string
+	PrivateKey string   `json:"private_key,omitempty"`
+	PeerID     string   `json:"peer_id,omitempty"`
 }
 
 // SystemNotification represents a system notification to be displayed to the user
