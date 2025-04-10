@@ -94,10 +94,10 @@ func networkConfiguration(ctx context.Context, port string, systemLogView *tview
 	)
 
 	if savedPrivKey != nil {
-		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Using saved identity for bootstrap node\n")))
+		systemLogView.Write([]byte("[Networking] Using saved identity for node\n"))
 		options = append(options, libp2p.Identity(savedPrivKey))
 	} else {
-		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Creating new identity for bootstrap node\n")))
+		systemLogView.Write([]byte("[Networking] Creating new identity for node\n"))
 	}
 
 	host, err := libp2p.New(options...)

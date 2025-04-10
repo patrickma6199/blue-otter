@@ -46,10 +46,10 @@ func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}
 	)
 
 	if savedPrivKey != nil {
-		log.Println("[Networking] Using saved identity for bootstrap node")
+		log.Println("[Networking] Using saved identity for node")
 		options = append(options, libp2p.Identity(savedPrivKey))
 	} else {
-		log.Println("[Networking] Creating new identity for bootstrap node")
+		log.Println("[Networking] Creating new identity for node")
 	}
 
 	host, err := libp2p.New(options...)
