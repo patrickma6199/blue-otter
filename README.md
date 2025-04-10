@@ -1,4 +1,4 @@
-```
+```{bash}
 ------------------------------------------------------------------------------
     ____  __    __  ______   ____ _______________  ____     _____ __      ____
    / __ )/ /   / / / / __/  / __ /_  __/_  __/ __/ / __ \   / ___// /    /  _/
@@ -26,7 +26,7 @@ Blue Otter is a simple peer-to-peer messaging application built with libp2p. It 
 
 Start the Blue Otter client to join a chat room:
 
-```
+```{bash}
 blue-otter client --username YourName --room RoomName --port 42069
 ```
 
@@ -34,7 +34,7 @@ blue-otter client --username YourName --room RoomName --port 42069
 
 Run as a bootstrap node for other Blue Otter instances:
 
-```
+```{bash}
 blue-otter bootstrap --port 42069
 ```
 
@@ -42,7 +42,7 @@ blue-otter bootstrap --port 42069
 
 Add a bootstrap node address to your configuration:
 
-```
+```{bash}
 blue-otter add-bootstrap --address "/ip4/127.0.0.1/tcp/42069/p2p/QmHashValue"
 ```
 
@@ -50,7 +50,7 @@ blue-otter add-bootstrap --address "/ip4/127.0.0.1/tcp/42069/p2p/QmHashValue"
 
 Remove a bootstrap node address from your configuration:
 
-```
+```{bash}
 blue-otter remove-bootstrap --address "/ip4/127.0.0.1/tcp/42069/p2p/QmHashValue"
 ```
 
@@ -58,7 +58,7 @@ blue-otter remove-bootstrap --address "/ip4/127.0.0.1/tcp/42069/p2p/QmHashValue"
 
 List all saved bootstrap node addresses:
 
-```
+```{bash}
 blue-otter list-bootstrap
 ```
 
@@ -66,7 +66,7 @@ blue-otter list-bootstrap
 
 Clean up the Blue Otter configuration directory:
 
-```
+```{bash}
 blue-otter clean-up
 ```
 
