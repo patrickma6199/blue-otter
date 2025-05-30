@@ -1,5 +1,7 @@
 package blue_otter_bootstrap
 
+// bootstrap.go contains all functions related to bootstrap server functionality
+
 import (
 	"context"
 	"fmt"

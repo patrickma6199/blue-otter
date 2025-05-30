@@ -1,5 +1,7 @@
 package blue_otter_client
 
+// client.go contains all functions related to client functionality
+
 import (
 	"context"
 	"encoding/json"

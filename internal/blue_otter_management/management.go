@@ -1,5 +1,7 @@
 package blue_otter_management
 
+// management.go contains all local file management operations for the application
+
 import (
 	"encoding/base64"
 	"encoding/json"

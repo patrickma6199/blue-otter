@@ -1,5 +1,7 @@
 package common
 
+// common.go contains all custom struct types for the application
+
 // ChatMessage represents a chat message in the system
 type ChatMessage struct {
 	Sender string `json:"sender"`

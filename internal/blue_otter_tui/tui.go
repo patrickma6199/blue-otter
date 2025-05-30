@@ -1,10 +1,6 @@
-// package main
-
-// func main() {
-
-// }
-
 package blue_otter_tui
+
+// tui.go contains all functions related to the creation and management of the TUI client interface
 
 import (
 	"fmt"

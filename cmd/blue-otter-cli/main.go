@@ -34,7 +34,7 @@ func main() {
 			{
 				Name:    "client",
 				Aliases: []string{"c"},
-				Usage:   "Start the Blue Otter service",
+				Usage:   "Start the Blue Otter client service",
 				Action: func(c *cli.Context) error {
 
 					fmt.Println(`
