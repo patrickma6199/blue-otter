@@ -1,0 +1,5 @@
+- [ ] Fix NAT traversal issues when peers are in the same network but the bootstrap node is elsewhere
+- [ ] Rebuild all binaries with new DHT lookup (maybe remove 'blue-otter' all together to make everything more discoverable)
+- [ ] Allow bootstrap node to run headless (this might be hard if trying to make it OS egnostic; cron would work)
+- [ ] Fix rb command for removing bootstrap addresses (select from list is easier)
+- [ ] Fix room joining announcements
