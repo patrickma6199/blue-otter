@@ -5,6 +5,7 @@ import (
 	"strings"
 	"bufio"
 	"os"
+	"regexp"
 
 	management "github.com/patrickma6199/blue-otter/internal/blueottermanagement"
 	"github.com/urfave/cli/v2"
@@ -18,18 +19,17 @@ func addBootstrapCmd(c *cli.Context) error {
 	address := c.String("address")
 
 	// Account for windows paths in powershell
-	normalizedAddr := address
-	if strings.HasPrefix(address, "C:/") {
-		if idx := strings.Index(address, "/ip4"); idx != -1 {
-			normalizedAddr = address[idx:]
-		}
+	sanitizedAddr := sanitizeAddress(address)
+
+	if !isAddressValid(sanitizedAddr) {
+		return fmt.Errorf("invalid bootstrap address format")
 	}
 
-	if err := management.AddBootstrapAddress(normalizedAddr); err != nil {
+	if err := management.AddBootstrapAddress(sanitizedAddr); err != nil {
 		return fmt.Errorf("failed to add bootstrap address: %w", err)
 	}
 
-	fmt.Printf("Bootstrap address '%s' added successfully\n", normalizedAddr)
+	fmt.Printf("Bootstrap address '%s' added successfully\n", sanitizedAddr)
 	return nil
 }
 
@@ -39,11 +39,19 @@ func removeBootstrapCmd(c *cli.Context) error {
 	}
 
 	address := c.String("address")
-	if err := management.RemoveBootstrapAddress(address); err != nil {
+
+	// Account for windows paths in powershell
+	sanitizedAddr := sanitizeAddress(address)
+
+	if !isAddressValid(sanitizedAddr) {
+		return fmt.Errorf("invalid bootstrap address format")
+	}
+
+	if err := management.RemoveBootstrapAddress(sanitizedAddr); err != nil {
 		return fmt.Errorf("failed to remove bootstrap address: %w", err)
 	}
 
-	fmt.Printf("Bootstrap address '%s' removed successfully\n", address)
+	fmt.Printf("Bootstrap address '%s' removed successfully\n", sanitizedAddr)
 	return nil
 }
 
@@ -88,4 +96,21 @@ func cleanupConfig(c *cli.Context) error {
 
 	fmt.Println("Blue Otter configuration directory cleaned up successfully")
 	return nil
+}
+
+// --------------- Helper Functions ---------------
+
+func isAddressValid(address string) bool {
+	var multiaddrRegex = regexp.MustCompile(`^/ip4/(\d{1,3}\.){3}\d{1,3}/tcp/\d+/p2p/[A-Za-z0-9]+$`)
+	return multiaddrRegex.MatchString(address)
+}
+
+func sanitizeAddress(address string) string {
+	sanitizedAddr := address
+	if strings.HasPrefix(address, "C:/") {
+		if idx := strings.Index(address, "/ip4"); idx != -1 {
+			sanitizedAddr = address[idx:]
+		}
+	}
+	return sanitizedAddr
 }
