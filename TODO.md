@@ -3,3 +3,5 @@
 - [ ] Allow bootstrap node to run headless (this might be hard if trying to make it OS egnostic; cron would work)
 - [ ] Fix rb command for removing bootstrap addresses (select from list is easier)
 - [ ] Fix room joining announcements
+- [x] More descriptive help dialogue
+- [x] Reorganize main.go to be more readable by abstracting command actions into their own files
