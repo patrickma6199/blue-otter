@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"os"
 	"regexp"
+	"strconv"
 
 	management "github.com/patrickma6199/blue-otter/internal/blueottermanagement"
 	"github.com/urfave/cli/v2"
@@ -34,12 +35,6 @@ func addBootstrapCmd(c *cli.Context) error {
 }
 
 func removeBootstrapCmd(c *cli.Context) error {
-	// if c.String("address") == "" {
-	// 	return fmt.Errorf("no bootstrap address specified. use --address or -a flag")
-	// }
-
-	// address := c.String("address")
-
 	info, err := management.LoadBootstrapAddresses()
 	if err != nil {
 		return fmt.Errorf("failed to load bootstrap addresses: %w", err)
@@ -55,27 +50,29 @@ func removeBootstrapCmd(c *cli.Context) error {
 		fmt.Printf("%d. %s\n", i+1, addr)
 	}
 
-	go func(){
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			
-		}
-	}()
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Print("Enter the number of the address you wish to remove: ")
+	if scanner.Scan() {
+	input := scanner.Text()
 
-	// Account for windows paths in powershell
-	sanitizedAddr := sanitizeAddress(address)
-
-	if !isAddressValid(sanitizedAddr) {
-		return fmt.Errorf("invalid bootstrap address format")
+	value, err := strconv.Atoi(input);
+	if err != nil {
+		return fmt.Errorf("please enter the addresses number from the list")
+	}
+	if value < 1 || value > len(info.Addresses) {
+		return fmt.Errorf("please enter a number within the range of the list")
 	}
 
-	if err := management.RemoveBootstrapAddress(sanitizedAddr); err != nil {
+	if err := management.RemoveBootstrapAddress(info.Addresses[value-1]); err != nil {
 		return fmt.Errorf("failed to remove bootstrap address: %w", err)
 	}
+	
+	fmt.Printf("Bootstrap address '%s' removed successfully\n", info.Addresses[value-1])
+	}
 
-	fmt.Printf("Bootstrap address '%s' removed successfully\n", sanitizedAddr)
 	return nil
 }
+
 
 func listBootstrapCmd(c *cli.Context) error {
 	info, err := management.LoadBootstrapAddresses()

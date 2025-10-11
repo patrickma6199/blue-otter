@@ -73,13 +73,6 @@ func main() {
 				Aliases: []string{"rb"},
 				Usage:   "Remove a bootstrap node address from the configuration",
 				Action: removeBootstrapCmd,
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "address",
-						Aliases: []string{"a"},
-						Usage:   "Bootstrap node address to remove",
-					},
-				},
 			},
 			{
 				Name:    "list-bootstrap",

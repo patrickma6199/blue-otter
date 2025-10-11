@@ -2,7 +2,7 @@
 - [ ] Rebuild all binaries with new DHT lookup (maybe remove 'blue-otter' all together to make everything more discoverable)
 - [ ] Allow bootstrap node to run headless (this might be hard if trying to make it OS egnostic; cron would work)
 - [x] Fix rb command for removing bootstrap addresses for Windows
-  - [ ] (select from list is easier)
+  - [x] (select from list is easier)
 - [ ] Fix room joining announcements
 - [x] More descriptive help dialogue
 - [x] Reorganize main.go to be more readable by abstracting command actions into their own files
