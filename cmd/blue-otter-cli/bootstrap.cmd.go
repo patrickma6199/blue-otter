@@ -39,7 +39,7 @@ BOOTSTRAP NODE - P2P Network Entry Point - v0.1.0
 	quitCh := make(chan struct{})
 
 	// Start the bootstrap node
-	host, err := bootstrap.StartBootstrapNode(ctx, c.String("port"), quitCh)
+	host, err := bootstrap.StartBootstrapNode(ctx, c.String("port"))
 	if err != nil {
 		return fmt.Errorf("failed to start bootstrap node: %w", err)
 	}
@@ -56,34 +56,34 @@ BOOTSTRAP NODE - P2P Network Entry Point - v0.1.0
 			text := scanner.Text()
 
 			switch text {
-			case "/quit":
-				fmt.Println("Shutting down bootstrap node...")
-				close(quitCh)
-				cancel()
-				return
-			case "/help":
-				fmt.Println("Available commands:")
-				fmt.Println("/quit - Exit the bootstrap node")
-				fmt.Println("/help - Show this help message")
-				fmt.Println("/list - List all connected peers")
-				fmt.Println("/clear - Clear the console")
-			case "/list":
-				// List all connected peers
-				peers := host.Peerstore().Peers()
-				fmt.Println("Connected peers:")
-				for _, peer := range peers {
-					fmt.Printf("- %s\n", peer.String())
-				}
-			case "/clear":
-				// Clear the console
-				fmt.Print("\033[H\033[2J")
-				fmt.Println("Console cleared.")
-			default:
-				if strings.HasPrefix(text, "/") {
-					fmt.Println("Unknown command:", text)
-				} else {
-					fmt.Println("This is a bootstrap node. No messages can be sent.")
-				}
+				case "/quit":
+					fmt.Println("Shutting down bootstrap node...")
+					close(quitCh)
+					cancel()
+					return
+				case "/help":
+					fmt.Println("Available commands:")
+					fmt.Println("/quit - Exit the bootstrap node")
+					fmt.Println("/help - Show this help message")
+					fmt.Println("/list - List all connected peers")
+					fmt.Println("/clear - Clear the console")
+				case "/list":
+					// List all connected peers
+					peers := host.Peerstore().Peers()
+					fmt.Println("Connected peers:")
+					for _, peer := range peers {
+						fmt.Printf("- %s\n", peer.String())
+					}
+				case "/clear":
+					// Clear the console
+					fmt.Print("\033[H\033[2J")
+					fmt.Println("Console cleared.")
+				default:
+					if strings.HasPrefix(text, "/") {
+						fmt.Println("Unknown command:", text)
+					} else {
+						fmt.Println("This is a bootstrap node. No messages can be sent.")
+					}
 			}
 		}
 	}()

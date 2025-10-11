@@ -34,11 +34,33 @@ func addBootstrapCmd(c *cli.Context) error {
 }
 
 func removeBootstrapCmd(c *cli.Context) error {
-	if c.String("address") == "" {
-		return fmt.Errorf("no bootstrap address specified. use --address or -a flag")
+	// if c.String("address") == "" {
+	// 	return fmt.Errorf("no bootstrap address specified. use --address or -a flag")
+	// }
+
+	// address := c.String("address")
+
+	info, err := management.LoadBootstrapAddresses()
+	if err != nil {
+		return fmt.Errorf("failed to load bootstrap addresses: %w", err)
 	}
 
-	address := c.String("address")
+	if len(info.Addresses) == 0 {
+		fmt.Println("No bootstrap addresses saved")
+		return nil
+	}
+
+	fmt.Println("Saved bootstrap addresses:")
+	for i, addr := range info.Addresses {
+		fmt.Printf("%d. %s\n", i+1, addr)
+	}
+
+	go func(){
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			
+		}
+	}()
 
 	// Account for windows paths in powershell
 	sanitizedAddr := sanitizeAddress(address)

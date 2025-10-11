@@ -11,7 +11,7 @@
 
 ## A peer-to-peer messaging CLI
 
-Blue Otter is a simple peer-to-peer messaging application built with libp2p. It allows users to communicate with each other in chatrooms without relying on centralized servers.
+Blue Otter is a simple peer-to-peer messaging application built with libp2p's GossipSub routing protocol. It allows users to communicate with each other in chatrooms without relying on centralized servers.
 
 ## Features
 

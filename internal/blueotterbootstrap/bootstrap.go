@@ -34,7 +34,7 @@ func SetupConnectionNotifications(host host.Host) {
 	})
 }
 
-func StartBootstrapNode(ctx context.Context, port string, quitCh <-chan struct{}) (host.Host, error) {
+func StartBootstrapNode(ctx context.Context, port string) (host.Host, error) {
 	savedPrivKey, err := management.GetPrivateKey()
 	if err != nil {
 		log.Printf("[Networking] Warning: Failed to load private key: %v. Will create new identity.", err)

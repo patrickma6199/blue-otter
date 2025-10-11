@@ -3,13 +3,13 @@ module github.com/patrickma6199/blue-otter
 go 1.24.1
 
 require (
-	github.com/gdamore/tcell v1.4.0
 	github.com/libp2p/go-libp2p v0.41.1
 	github.com/libp2p/go-libp2p-kad-dht v0.30.2
 	github.com/libp2p/go-libp2p-pubsub v0.13.1
 	github.com/multiformats/go-multiaddr v0.15.0
 	github.com/rivo/tview v0.0.0-20250325173046-7b72abf45814
 	github.com/urfave/cli/v2 v2.27.6
+	github.com/gdamore/tcell/v2 v2.7.1
 )
 
 require (
@@ -26,7 +26,6 @@ require (
 	github.com/flynn/noise v1.1.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
-	github.com/gdamore/tcell/v2 v2.7.1 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
