@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 )
 
+// CreateUI creates the blue otter cli tui used in the client interface using the username and roomName in the bottom input field
 func CreateUI(username string, roomName string) (rootLayout *tview.Flex,
     titleView *tview.TextView,
     chatView *tview.TextView,

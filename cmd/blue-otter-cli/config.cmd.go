@@ -12,6 +12,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// addBootstrapCmd is the main function run to facilitate the functionality of the add-bootstrap command
 func addBootstrapCmd(c *cli.Context) error {
 	if c.String("address") == "" {
 		return fmt.Errorf("no bootstrap address specified. use --address or -a flag")
@@ -34,6 +35,7 @@ func addBootstrapCmd(c *cli.Context) error {
 	return nil
 }
 
+// removeBootstrapCmd is the main function run to facilitate the functionality of the remove-bootstrap command
 func removeBootstrapCmd(c *cli.Context) error {
 	info, err := management.LoadBootstrapAddresses()
 	if err != nil {
@@ -73,7 +75,7 @@ func removeBootstrapCmd(c *cli.Context) error {
 	return nil
 }
 
-
+// listBootstrapCmd is the main function run to facilitate the functionality of the list-bootstrap command
 func listBootstrapCmd(c *cli.Context) error {
 	info, err := management.LoadBootstrapAddresses()
 	if err != nil {
@@ -93,6 +95,7 @@ func listBootstrapCmd(c *cli.Context) error {
 	return nil
 }
 
+// cleanupConfig is the main function run to facilitate the functionality of the clean-up command
 func cleanupConfig(c *cli.Context) error {
 	if !c.Bool("force") {
 		fmt.Println("This will delete all Blue Otter configuration data. Are you sure? (y/n)")
@@ -119,11 +122,13 @@ func cleanupConfig(c *cli.Context) error {
 
 // --------------- Helper Functions ---------------
 
+// isAddressValid checks if an address is a valid form for libp2p peers
 func isAddressValid(address string) bool {
 	var multiaddrRegex = regexp.MustCompile(`^/ip4/(\d{1,3}\.){3}\d{1,3}/tcp/\d+/p2p/[A-Za-z0-9]+$`)
 	return multiaddrRegex.MatchString(address)
 }
 
+// sanitizeAddress is to protect against windows command-line address auto-resolution
 func sanitizeAddress(address string) string {
 	sanitizedAddr := address
 	if strings.HasPrefix(address, "C:/") {

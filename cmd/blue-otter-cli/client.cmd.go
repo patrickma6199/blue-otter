@@ -15,6 +15,7 @@ import (
 	"github.com/rivo/tview"
 )
 
+// clientCmd is the main function run to facilitate the functionality of the client command
 func clientCmd(c *cli.Context) error {
 
 	fmt.Println(`

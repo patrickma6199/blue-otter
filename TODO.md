@@ -1,5 +1,8 @@
 - [ ] Fix NAT traversal issues when peers are in the same network but the bootstrap node is elsewhere
+  - [x] Turn bootstrap into a relay to fall back on if hole-punching fails
 - [ ] Rebuild all binaries with new DHT lookup (maybe remove 'blue-otter' all together to make everything more discoverable)
+  - [x] Switch '/ipfs/blue-otter' protocol prefix to '/ipfs'
+  - [ ] Add public bootstrap nodes of ipfs provided by libp2p
 - [ ] Allow bootstrap node to run headless (this might be hard if trying to make it OS egnostic; cron would work)
 - [x] Fix rb command for removing bootstrap addresses for Windows
   - [x] (select from list is easier)
@@ -7,3 +10,4 @@
 - [x] More descriptive help dialogue
 - [x] Reorganize main.go to be more readable by abstracting command actions into their own files
 - [x] Add syntax check to address provided in ab and rb command
+- [ ] Annotate over functions for easier navigation experience

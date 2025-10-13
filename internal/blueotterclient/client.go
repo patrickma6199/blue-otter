@@ -39,6 +39,7 @@ func SetupConnectionNotifications(host host.Host, systemLogView *tview.TextView)
 	})
 }
 
+// StartServer starts a client node
 func StartServer(ctx context.Context, username string, roomName string, port string, quitCh <-chan struct{}, chatView *tview.TextView, systemLogView *tview.TextView) (host.Host, *pubsub.Subscription, *pubsub.Topic) {
 	host := networkConfiguration(ctx, port, systemLogView)
 
@@ -80,8 +81,8 @@ func StartServer(ctx context.Context, username string, roomName string, port str
 	return host, sub, topic
 }
 
+// networkConfiguration handles all functionality relating to peer discovery and advertising
 func networkConfiguration(ctx context.Context, port string, systemLogView *tview.TextView) host.Host {
-	// ---------------------- Network Connection Configuration ----------------------
 
 	savedPrivKey, err := management.GetPrivateKey()
 	if err != nil {
@@ -118,14 +119,17 @@ func networkConfiguration(ctx context.Context, port string, systemLogView *tview
 		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Listening on: %s/p2p/%s\n", addr, host.ID())))
 	}
 
-	kDht, err := dht.New(ctx, host, dht.Mode(dht.ModeClient), dht.ProtocolPrefix("/ipfs/blue-otter"))
+	kDht, err := dht.New(ctx, host, dht.Mode(dht.ModeClient), dht.ProtocolPrefix("/ipfs"))
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// starts up the background processes for peer discovery through populating the clients DHT
 	if err := kDht.Bootstrap(ctx); err != nil {
 		log.Fatal(err)
 	}
 
+	// Grabs configured bootstrap nodes for connection read from the application json
 	bootstrapAddrs, err := management.LoadBootstrapAddressesForConnections()
 	if err != nil {
 		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Warning: Failed to load bootstrap addresses: %v\n", err)))
@@ -134,11 +138,12 @@ func networkConfiguration(ctx context.Context, port string, systemLogView *tview
 
 	if len(bootstrapAddrs) == 0 {
 		bootstrapAddrs = []string{}
-		systemLogView.Write([]byte(fmt.Sprintf("[Networking] No bootstrap peers found. Please add some using the management commands.\n")))
+		systemLogView.Write([]byte("[Networking] No bootstrap peers found. Please add some using the management commands.\n"))
 	} else {
 		systemLogView.Write([]byte(fmt.Sprintf("[Networking] Loaded %d bootstrap peers\n", len(bootstrapAddrs))))
 	}
 
+	// attempts to connect to all listed bootstrap nodes
 	for _, ba := range bootstrapAddrs {
 		maddr, err := multiaddr.NewMultiaddr(ba)
 		if err != nil {
@@ -157,51 +162,59 @@ func networkConfiguration(ctx context.Context, port string, systemLogView *tview
 		}
 	}
 
+	// wraps the DHT to allow running higher level discovery methods like Advertise and FindPeers
 	disc := routing.NewRoutingDiscovery(kDht)
 	
+	// add a background go routine that will handle peer connections by continuously advertising and finding other peers that are advertising
 	go func() {
 		deadPeers := make(map[peer.ID]time.Time)
 
+		// add a background go routine that will handle peer connections by continuously advertising and finding other peers that are advertising
+		// advertise and look for peers every 5 seconds
 		for {
-			_, err := disc.Advertise(ctx, "--blue-otter-namespace--")
-			if err != nil {
-				if err.Error() != "failed to find any peer in table" {
-					systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Error advertising: %v\n", err)))
-				}
-			}
-
-			peerChan, err := disc.FindPeers(ctx, "--blue-otter-namespace--")
-			if err != nil {
-				if err.Error() != "failed to find any peer in table" {
-					systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Error finding peers: %v\n", err)))
-				}
-				continue
-			}
-
-			for p := range peerChan {
-				if p.ID == host.ID() || len(p.Addrs) == 0 {
-					continue
-				}
-				
-				if nextRetry, found := deadPeers[p.ID]; found && time.Now().Before(nextRetry) {
-					continue
-				}
-
-				if host.Network().Connectedness(p.ID) != network.Connected {
-					systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Connecting to peer from peer list: %s\n", p.ID)))
-					if err := host.Connect(ctx, p); err != nil {
-						systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Failed to connect to peer from peer list: %v\nRetrying in 20 minutes...\n", err)))
-						deadPeers[p.ID] = time.Now().Add(20 * time.Minute)
-					} else {
-						delete(deadPeers, p.ID)
+			select {
+				case <-ctx.Done():
+					return
+				case <-time.After(5 * time.Second):
+					_, err := disc.Advertise(ctx, "--blue-otter-namespace--")
+					if err != nil {
+						if err.Error() != "failed to find any peer in table" {
+							systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Error advertising: %v\n", err)))
+						}
 					}
-				}
-			}
 
-			time.Sleep(5 * time.Second)
+					peerChan, err := disc.FindPeers(ctx, "--blue-otter-namespace--")
+					if err != nil {
+						if err.Error() != "failed to find any peer in table" {
+							systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Error finding peers: %v\n", err)))
+						}
+						continue
+					}
+
+					for p := range peerChan {
+						if p.ID == host.ID() || len(p.Addrs) == 0 {
+							continue
+						}
+						
+						if nextRetry, found := deadPeers[p.ID]; found && time.Now().Before(nextRetry) {
+							continue
+						}
+
+						if host.Network().Connectedness(p.ID) != network.Connected {
+							systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Connecting to peer from peer list: %s\n", p.ID)))
+							if err := host.Connect(ctx, p); err != nil {
+								systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Failed to connect to peer from peer list: %v\nRetrying in 20 minutes...\n", err)))
+								deadPeers[p.ID] = time.Now().Add(20 * time.Minute)
+							} else {
+								delete(deadPeers, p.ID)
+							}
+						}
+					}
+			}
 		}
 	}()
 
+	// Saves the host information so that the next time the node starts up, its address and ID are the same
 	if err := management.SaveAddressInfo(host); err != nil {
 		systemLogView.Write([]byte(fmt.Sprintf("[Config] Warning: Failed to save bootstrap info: %v\n", err)))
 	}
@@ -209,6 +222,7 @@ func networkConfiguration(ctx context.Context, port string, systemLogView *tview
 	return host
 }
 
+// pubSubConfiguration handles the GossipSub configuration that works on top of the DHT for messages to be sent
 func pubSubConfiguration(ctx context.Context, host host.Host, roomName string) (*pubsub.Subscription, *pubsub.Topic) {
 	// ---------------------- PubSub Configuration ----------------------
 

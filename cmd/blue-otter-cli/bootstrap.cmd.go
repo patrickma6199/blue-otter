@@ -12,6 +12,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// bootstrapCmd is the main function run to facilitate the functionality of the bootstrap command
 func bootstrapCmd(c *cli.Context) error {
 	fmt.Println(`
     ____  __    __  ______   ____ _______________  ____     _____ __      ____
@@ -49,7 +50,7 @@ BOOTSTRAP NODE - P2P Network Entry Point - v0.1.0
 	fmt.Println("Other Blue Otter instances can now connect to this bootstrap node.")
 	fmt.Println("Bootstrap info saved in ~/.blue-otter/bootstrap.json")
 
-	// Read user input
+	// Goroutine to continually read user input in a non-blocking manner
 	go func() {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
