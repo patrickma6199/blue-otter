@@ -203,8 +203,8 @@ func networkConfiguration(ctx context.Context, port string, systemLogView *tview
 						if host.Network().Connectedness(p.ID) != network.Connected {
 							systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Connecting to peer from peer list: %s\n", p.ID)))
 							if err := host.Connect(ctx, p); err != nil {
-								systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Failed to connect to peer from peer list: %v\nRetrying in 20 minutes...\n", err)))
-								deadPeers[p.ID] = time.Now().Add(20 * time.Minute)
+								systemLogView.Write([]byte(fmt.Sprintf("[Discovery] Failed to connect to peer from peer list: %v\nRetrying in 1 minutes...\n", err)))
+								deadPeers[p.ID] = time.Now().Add(1 * time.Minute)
 							} else {
 								delete(deadPeers, p.ID)
 							}
