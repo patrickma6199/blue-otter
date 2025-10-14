@@ -10,4 +10,5 @@
 - [x] More descriptive help dialogue
 - [x] Reorganize main.go to be more readable by abstracting command actions into their own files
 - [x] Add syntax check to address provided in ab and rb command
-- [ ] Annotate over functions for easier navigation experience
+- [x] Annotate over functions for easier navigation experience
+- [ ] Remove binaries from repository using git filter-repo to minimize disk usage and add binaries to each release
